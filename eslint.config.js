@@ -30,14 +30,16 @@ export default [
 
 
   {
-    files: ['src/frontend/**/*.js'],
-    languageOptions: {
-      globals: {
-        document: 'readonly',
-        fetch: 'readonly',
-        window: 'readonly',
-        setTimeout: 'readonly'
-      }
+  files: ['src/frontend/**/*.js'],
+  languageOptions: {
+    globals: {
+      document: 'readonly',
+      fetch: 'readonly',
+      window: 'readonly',
+      setTimeout: 'readonly',
+      localStorage: 'readonly',
+      crypto: 'readonly'
     }
   }
+}
 ];
