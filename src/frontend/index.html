@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bokningssystem</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="container">
+    <h1>Boka en tid</h1>
+
+    <div id="schedule" class="schedule"></div>
+
+    <button id="book-btn" class="book-btn">Boka vald tid</button>
+
+    <button id="manage-booking-btn" class="manage-booking-btn">
+        Avboka eller boka till en annan tid
+    </button>
+    <p id="status" class="status"></p>
+  </div>
+
+<div id="manageBookingModal" class="hidden">
+  <div>
+    <h3>Hantera bokning</h3>
+
+    <input
+      type="text"
+      id="orderNumberInput"
+      placeholder="Ange ordernummer"
+    />
+
+    <div>
+      <button id="cancelBookingBtn">Avboka</button>
+      <button id="rescheduleBookingBtn">Boka om</button>
+    </div>
+
+    <p id="manageBookingMessage"></p>
+
+    <button id="closeManageBookingBtn">Stäng</button>
+  </div>
+</div>
+
+  <div id="confirmCancelModal" class="hidden">
+    <div class="modal">
+      <h3>Bekräfta avbokning</h3>
+      <p>Vill du verkligen avboka denna bokning?</p>
+
+      <button id="confirmCancelYes">Ja, avboka</button>
+      <button id="confirmCancelNo">Avbryt</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+
+</body>
+</html>
+

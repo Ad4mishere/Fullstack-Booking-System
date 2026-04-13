@@ -1,0 +1,308 @@
+{
+	"info": {
+		"_postman_id": "d0c7ed8c-3b25-44c2-bc98-00482053d988",
+		"name": "Booking API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "50547804",
+		"_collection_link": "https://ad4mishere-580847.postman.co/workspace/A-H's-Workspace~891a0e24-98ed-442e-8fe9-7364386321ad/collection/50547804-d0c7ed8c-3b25-44c2-bc98-00482053d988?action=share&source=collection_link&creator=50547804"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Health endpoint returns 200\", () => {\r",
+							"  pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Health status is ok\", () => {\r",
+							"  const json = pm.response.json();\r",
+							"  pm.expect(json.status).to.eql(\"ok\");\r",
+							"});\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Available Time Slots",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Returns 200 OK\", () => {\r",
+							"  pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Response is an array\", () => {\r",
+							"  const json = pm.response.json();\r",
+							"  pm.expect(Array.isArray(json)).to.be.true;\r",
+							"});\r",
+							"\r",
+							"pm.test(\"At least one time slot is returned\", () => {\r",
+							"  const json = pm.response.json();\r",
+							"  pm.expect(json.length).to.be.greaterThan(0);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Returned slots contain required fields\", () => {\r",
+							"  const json = pm.response.json();\r",
+							"  json.forEach(slot => {\r",
+							"    pm.expect(slot).to.have.property(\"id\");\r",
+							"    pm.expect(slot).to.have.property(\"date\");\r",
+							"    pm.expect(slot).to.have.property(\"start_time\");\r",
+							"  });\r",
+							"});\r",
+							"\r",
+							"\r",
+							"const slots = pm.response.json();\r",
+							"\r",
+							"// PUT kräver två olika lediga tider\r",
+							"pm.expect(slots.length).to.be.greaterThan(1);\r",
+							"\r",
+							"// Första lediga tiden → POST\r",
+							"pm.collectionVariables.set(\r",
+							"  \"originalTimeSlotId\",\r",
+							"  Number(slots[0].id)\r",
+							");\r",
+							"\r",
+							"// Andra lediga tiden → PUT\r",
+							"pm.collectionVariables.set(\r",
+							"  \"newTimeSlotId\",\r",
+							"  Number(slots[1].id)\r",
+							");\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/api/time-slots",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"time-slots"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Booking",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const json = pm.response.json();\r",
+							"\r",
+							"pm.test(\"Booking created\", () => {\r",
+							"  pm.response.to.have.status(201);\r",
+							"  pm.expect(json.orderNumber).to.exist;\r",
+							"});\r",
+							"\r",
+							"pm.collectionVariables.set(\r",
+							"  \"orderNumber\",\r",
+							"  json.orderNumber\r",
+							");\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"timeSlotId\": {{originalTimeSlotId}}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/bookings",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"bookings"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Change Booking",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Booking updated (200)\", () => {\r",
+							"  pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Correct response message\", () => {\r",
+							"  const json = pm.response.json();\r",
+							"  pm.expect(json.message).to.eql(\"Booking updated\");\r",
+							"});\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"newTimeSlotId\": {{newTimeSlotId}}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/api/bookings/{{orderNumber}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"bookings",
+						"{{orderNumber}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Cancel Booking",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Booking is cancelled (200)\", () => {\r",
+							"  pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Cancel response has correct message\", () => {\r",
+							"  const json = pm.response.json();\r",
+							"  pm.expect(json.message).to.eql(\"Booking cancelled\");\r",
+							"});\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/api/bookings/{{orderNumber}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"bookings",
+						"{{orderNumber}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "originalTimeSlotId",
+			"value": ""
+		},
+		{
+			"key": "newTimeSlotId",
+			"value": ""
+		},
+		{
+			"key": "orderNumber",
+			"value": ""
+		}
+	]
+}
