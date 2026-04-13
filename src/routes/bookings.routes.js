@@ -1,114 +1,152 @@
 import express from "express";
 import crypto from "crypto";
-import { db } from "../db.js";
+import { supabase } from "../supabaseClient.js";
+import { z } from "zod";
 
 const router = express.Router();
 
-router.post("/", (req, res) => {
-  const { timeSlotId } = req.body;
+/* =======================
+   CREATE BOOKING
+======================= */
 
-  if (!timeSlotId) {
-    return res.status(400).json({ error: "timeSlotId is required" });
-  }
+const createBookingSchema = z.object({
+  timeSlotId: z.number()
+});
 
-  const slot = db.prepare(`
-    SELECT id, is_booked
-    FROM time_slots
-    WHERE id = ?
-  `).get(timeSlotId);
 
-  if (!slot) {
+router.post("/", async (req, res) => {
+  const parsed = createBookingSchema.safeParse(req.body);
+
+if (!parsed.success) {
+  return res.status(400).json({ error: "Invalid input" });
+}
+
+const { timeSlotId } = parsed.data;
+
+  const userId = req.user.id;
+
+  // Hämta slot
+  const { data: slot, error: slotError } = await supabase
+    .from("time_slots")
+    .select("id, is_booked")
+    .eq("id", timeSlotId)
+    .single();
+
+  if (slotError || !slot) {
     return res.status(404).json({ error: "Time slot not found" });
-  }
-
-  if (slot.is_booked) {
-    return res.status(400).json({ error: "Time slot already booked" });
   }
 
   const orderNumber = `ORD-${crypto.randomUUID()
     .slice(0, 8)
     .toUpperCase()}`;
 
-  const book = db.transaction(() => {
-    db.prepare(`
-      UPDATE time_slots
-      SET is_booked = 1
-      WHERE id = ?
-    `).run(timeSlotId);
+  /* 🔥 RACE CONDITION FIX */
+  const { data: updatedSlot, error: updateError } = await supabase
+    .from("time_slots")
+    .update({ is_booked: true })
+    .eq("id", timeSlotId)
+    .eq("is_booked", false)
+    .select();
 
-    db.prepare(`
-      INSERT INTO bookings (time_slot_id, order_number)
-      VALUES (?, ?)
-    `).run(timeSlotId, orderNumber);
-  });
+  if (updateError) {
+    return res.status(500).json(updateError);
+  }
 
-  book();
+  // Om ingen rad uppdaterades → redan bokad
+  if (!updatedSlot || updatedSlot.length === 0) {
+    return res.status(400).json({ error: "Time slot already booked" });
+  }
+
+  // Skapa booking
+  const { error: insertError } = await supabase
+    .from("bookings")
+    .insert({
+      time_slot_id: timeSlotId,
+      order_number: orderNumber,
+      user_id: userId
+    });
+
+  if (insertError) {
+    return res.status(500).json(insertError);
+  }
 
   res.status(201).json({ orderNumber });
 });
 
-router.delete("/:orderNumber", (req, res) => {
+
+/* =======================
+   CANCEL BOOKING
+======================= */
+router.delete("/:orderNumber", async (req, res) => {
   const { orderNumber } = req.params;
 
+  const { data: booking, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("order_number", orderNumber)
+    .single();
 
-  const booking = db.prepare(`
-    SELECT id, time_slot_id
-    FROM bookings
-    WHERE order_number = ?
-  `).get(orderNumber);
-
-
-  if (!booking) {
+  if (error || !booking) {
     return res.status(404).json({ error: "Booking not found" });
   }
 
+  // 🔥 ACCESS CONTROL
+  if (booking.user_id !== req.user.id) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
 
-  const cancel = db.transaction(() => {
-    db.prepare(`
-      DELETE FROM bookings
-      WHERE id = ?
-    `).run(booking.id);
+  await supabase
+    .from("bookings")
+    .delete()
+    .eq("id", booking.id);
 
-    db.prepare(`
-      UPDATE time_slots
-      SET is_booked = 0
-      WHERE id = ?
-    `).run(booking.time_slot_id);
-  });
-
-  cancel();
-
+  await supabase
+    .from("time_slots")
+    .update({ is_booked: false })
+    .eq("id", booking.time_slot_id);
 
   res.status(200).json({ message: "Booking cancelled" });
 });
 
 
-router.put("/:orderNumber", (req, res) => {
+/* =======================
+   UPDATE BOOKING
+======================= */
+
+const updateBookingSchema = z.object({
+  newTimeSlotId: z.number()
+});
+
+router.put("/:orderNumber", async (req, res) => {
   const { orderNumber } = req.params;
-  const { newTimeSlotId } = req.body;
+  const parsed = updateBookingSchema.safeParse(req.body);
 
+if (!parsed.success) {
+  return res.status(400).json({ error: "Invalid input" });
+}
 
-  if (!newTimeSlotId) {
-    return res.status(400).json({ error: "newTimeSlotId is required" });
-  }
+const { newTimeSlotId } = parsed.data;
 
-
-  const booking = db.prepare(`
-    SELECT id, time_slot_id
-    FROM bookings
-    WHERE order_number = ?
-  `).get(orderNumber);
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("order_number", orderNumber)
+    .single();
 
   if (!booking) {
     return res.status(404).json({ error: "Booking not found" });
   }
 
+  // 🔥 ACCESS CONTROL
+  if (booking.user_id !== req.user.id) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
 
-  const newSlot = db.prepare(`
-    SELECT id, is_booked
-    FROM time_slots
-    WHERE id = ?
-  `).get(newTimeSlotId);
+  const { data: newSlot } = await supabase
+    .from("time_slots")
+    .select("*")
+    .eq("id", newTimeSlotId)
+    .single();
 
   if (!newSlot) {
     return res.status(404).json({ error: "New time slot not found" });
@@ -118,35 +156,24 @@ router.put("/:orderNumber", (req, res) => {
     return res.status(400).json({ error: "New time slot is already booked" });
   }
 
+  // Frigör gamla
+  await supabase
+    .from("time_slots")
+    .update({ is_booked: false })
+    .eq("id", booking.time_slot_id);
 
-  const rebook = db.transaction(() => {
+  // 🔥 (kan också race-fixas här men ej kritiskt nu)
+  await supabase
+    .from("time_slots")
+    .update({ is_booked: true })
+    .eq("id", newTimeSlotId);
 
-    db.prepare(`
-      UPDATE time_slots
-      SET is_booked = 0
-      WHERE id = ?
-    `).run(booking.time_slot_id);
-
-
-    db.prepare(`
-      UPDATE time_slots
-      SET is_booked = 1
-      WHERE id = ?
-    `).run(newTimeSlotId);
-
-
-
-    db.prepare(`
-      UPDATE bookings
-      SET time_slot_id = ?
-      WHERE id = ?
-    `).run(newTimeSlotId, booking.id);
-  });
-
-  rebook();
+  await supabase
+    .from("bookings")
+    .update({ time_slot_id: newTimeSlotId })
+    .eq("id", booking.id);
 
   res.status(200).json({ message: "Booking updated" });
 });
-
 
 export default router;
