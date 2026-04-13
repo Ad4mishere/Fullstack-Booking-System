@@ -1,8 +1,9 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import "dotenv/config";
 
-import { db } from "./db.js";
+import { supabase } from "./supabaseClient.js";
 import { generateTimeSlots } from "./generateTimeSlots.js";
 
 import timeSlotsRoutes from "./routes/timeSlots.routes.js";
@@ -21,18 +22,37 @@ app.use(
   express.static(path.join(__dirname, "frontend"))
 );
 
-/* === SEED VID START === */
-const count = db
-  .prepare("SELECT COUNT(*) AS count FROM time_slots")
-  .get();
+/* === SEED VID START (Supabase) === */
+(async () => {
+  const { data, error } = await supabase
+    .from("time_slots")
+    .select("id");
 
-if (count.count === 0) {
-  generateTimeSlots(10);
-}
+  if (error) {
+    console.error("Error checking time_slots:", error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    console.log("Seeding Supabase...");
+    await generateTimeSlots(10);
+  }
+})();
 
 /* === API ROUTES === */
 app.use("/api/time-slots", timeSlotsRoutes);
 app.use("/api/bookings", bookingsRoutes);
+
+/* === TEST ROUTE (kan tas bort senare) === */
+app.get("/test-db", async (req, res) => {
+  const { data, error } = await supabase
+    .from("time_slots")
+    .select("*");
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
 
 /* === HEALTH === */
 app.get("/health", (req, res) => {

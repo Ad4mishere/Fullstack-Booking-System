@@ -1,25 +1,28 @@
 import express from "express";
-import { db } from "../db.js";
+import { supabase } from "../supabaseClient.js";
 
 const router = express.Router();
 
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   const now = new Date();
   const today = now.toISOString().split("T")[0];
   const currentTime = now.toTimeString().slice(0, 5);
 
-  const slots = db.prepare(`
-    SELECT id, date, start_time
-    FROM time_slots
-    WHERE is_booked = 0
-      AND (
-        date > ?
-        OR (date = ? AND start_time > ?)
-      )
-    ORDER BY date, start_time
-  `).all(today, today, currentTime);
+  const { data, error } = await supabase
+    .from("time_slots")
+    .select("id, date, start_time")
+    .eq("is_booked", false)
+    .or(
+      `date.gt.${today},and(date.eq.${today},start_time.gt.${currentTime})`
+    )
+    .order("date", { ascending: true })
+    .order("start_time", { ascending: true });
 
-  res.status(200).json(slots);
+  if (error) {
+    return res.status(500).json(error);
+  }
+
+  res.status(200).json(data);
 });
 
 export default router;
