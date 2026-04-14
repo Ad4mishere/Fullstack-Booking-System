@@ -6,6 +6,26 @@
 		"_exporter_id": "50547804",
 		"_collection_link": "https://ad4mishere-580847.postman.co/workspace/A-H's-Workspace~891a0e24-98ed-442e-8fe9-7364386321ad/collection/50547804-d0c7ed8c-3b25-44c2-bc98-00482053d988?action=share&source=collection_link&creator=50547804"
 	},
+
+	"variable": [
+		{
+			"key": "originalTimeSlotId",
+			"value": ""
+		},
+		{
+			"key": "newTimeSlotId",
+			"value": ""
+		},
+		{
+			"key": "orderNumber",
+			"value": ""
+		},
+		{
+  			"key": "userId",
+  			"value": "test-user-123"
+		}
+	],
+
 	"item": [
 		{
 			"name": "Health",
@@ -32,7 +52,16 @@
 			],
 			"request": {
 				"method": "GET",
-				"header": [],
+				"header": [
+  					{
+   					 "key": "Content-Type",
+  					  "value": "application/json"
+ 					 },
+  					{
+    					"key": "x-user-id",
+    					"value": "{{userId}}"
+  					}
+					],
 				"url": {
 					"raw": "http://localhost:3000/health",
 					"protocol": "http",
@@ -104,7 +133,16 @@
 			],
 			"request": {
 				"method": "GET",
-				"header": [],
+				"header": [
+ 						 {
+ 					   "key": "Content-Type",
+    					"value": "application/json"
+ 					 },
+ 					 {
+  					  "key": "x-user-id",
+  					  "value": "{{userId}}"
+					  }
+					],
 				"url": {
 					"raw": "http://localhost:3000/api/time-slots",
 					"protocol": "http",
@@ -148,7 +186,16 @@
 			],
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+  					{
+    					"key": "Content-Type",
+    					"value": "application/json"
+ 					 },
+ 					 {
+ 					   "key": "x-user-id",
+ 					   "value": "{{userId}}"
+ 					 }
+					],
 				"body": {
 					"mode": "raw",
 					"raw": "{\r\n  \"timeSlotId\": {{originalTimeSlotId}}\r\n}",
@@ -198,7 +245,16 @@
 			],
 			"request": {
 				"method": "PUT",
-				"header": [],
+				"header": [
+  					{
+    					"key": "Content-Type",
+    					"value": "application/json"
+  					},
+  					{
+    					"key": "x-user-id",
+    					"value": "{{userId}}"
+ 						 }
+					],
 				"body": {
 					"mode": "raw",
 					"raw": "{\r\n  \"newTimeSlotId\": {{newTimeSlotId}}\r\n}",
@@ -249,7 +305,16 @@
 			],
 			"request": {
 				"method": "DELETE",
-				"header": [],
+				"header": [
+  					{
+    					"key": "Content-Type",
+    					"value": "application/json"
+  					},
+  					{
+    					"key": "x-user-id",
+    					"value": "{{userId}}"
+  					}
+					],
 				"url": {
 					"raw": "http://localhost:3000/api/bookings/{{orderNumber}}",
 					"protocol": "http",
@@ -289,20 +354,6 @@
 					""
 				]
 			}
-		}
-	],
-	"variable": [
-		{
-			"key": "originalTimeSlotId",
-			"value": ""
-		},
-		{
-			"key": "newTimeSlotId",
-			"value": ""
-		},
-		{
-			"key": "orderNumber",
-			"value": ""
 		}
 	]
 }
