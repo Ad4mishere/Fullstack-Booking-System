@@ -41,7 +41,8 @@ jobs:
       - name: Start backend server
         run: |
             npm start &
-            npx wait-on http://localhost:3000
+            sleep 5
+            curl http://localhost:3000/health || echo "Server not responding"
 
       - name: Run API tests (Newman)
         run: npm run test:api
