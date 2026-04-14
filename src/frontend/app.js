@@ -1,7 +1,7 @@
 const schedule = document.getElementById("schedule");
 const bookButton = document.getElementById("book-btn");
 const statusText = document.getElementById("status");
-const API_URL = "https://fullstack-booking-system-production.up.railway.app/";
+const API_URL = "https://fullstack-booking-system-production.up.railway.app";
 
 let selectedTimeSlotId = null;
 let rescheduleOrderNumber = null;

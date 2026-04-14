@@ -14,7 +14,7 @@ import timeSlotsRoutes from "./routes/timeSlots.routes.js";
 import bookingsRoutes from "./routes/bookings.routes.js";
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,22 +37,20 @@ const limiter = rateLimit({
 
 app.use("/api", limiter);
 
-/* === SEED VID START (Supabase) === */
-(async () => {
-  const { data, error } = await supabase
+/* === SEED SUPABASE === */
+async function seedTimeSlots() {
+  const { data } = await supabase
     .from("time_slots")
-    .select("id");
-
-  if (error) {
-    console.error("Error checking time_slots:", error);
-    return;
-  }
+    .select("id")
+    .limit(1);
 
   if (!data || data.length === 0) {
-    console.log("Seeding Supabase...");
+    console.log("Seeding time slots...");
     await generateTimeSlots(10);
   }
-})();
+}
+
+seedTimeSlots();
 
 app.use((req, res, next) => {
   let userId = req.headers["x-user-id"];
