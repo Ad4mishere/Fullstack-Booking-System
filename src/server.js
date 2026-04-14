@@ -55,25 +55,29 @@ app.get("/health", (req, res) => {
 
 /* === SEED SUPABASE === */
 async function seedTimeSlots() {
-  const { data, error } = await supabase
-    .from("time_slots")
-    .select("id")
-    .limit(1);
+  try {
+    const { data, error } = await supabase
+      .from("time_slots")
+      .select("id")
+      .limit(1);
 
-  if (error) {
-    console.error("Error checking time_slots:", error);
-    return;
-  }
+    if (error) {
+      console.error("Seed check failed:", error);
+      return; // ❗ hoppa över seed
+    }
 
-  if (!data || data.length === 0) {
-    console.log("Seeding time slots...");
-    await generateTimeSlots(10);
+    if (!data || data.length === 0) {
+      console.log("Seeding time slots...");
+      await generateTimeSlots(10);
+    }
+  } catch (err) {
+    console.error("Seed crashed:", err);
   }
 }
 
 /* === START SERVER === */
 async function startServer() {
-  await seedTimeSlots(); // 🔥 KRITISK
+  await seedTimeSlots(); // försöker, men blockerar inte
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
