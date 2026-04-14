@@ -41,6 +41,8 @@ jobs:
       - name: Start backend server
         run: |
             nohup npm start > server.log 2>&1 &
+            sleep 5
+            cat server.log
 
       - name: Wait for server
         run: npx wait-on http://localhost:3000
