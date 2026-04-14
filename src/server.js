@@ -6,7 +6,6 @@ import { fileURLToPath } from "url";
 import "dotenv/config";
 import helmet from "helmet";
 
-
 import { supabase } from "./supabaseClient.js";
 import { generateTimeSlots } from "./generateTimeSlots.js";
 
@@ -20,13 +19,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use(express.json());
-
 app.use(helmet());
 
 /* === FRONTEND === */
-app.use(
-  express.static(path.join(__dirname, "frontend"))
-);
+app.use(express.static(path.join(__dirname, "frontend")));
 
 /* 🔥 RATE LIMITER (endast API) */
 const limiter = rateLimit({
@@ -34,15 +30,40 @@ const limiter = rateLimit({
   max: 100,
   message: { error: "Too many requests" }
 });
-
 app.use("/api", limiter);
+
+/* 🔐 USER MIDDLEWARE */
+app.use((req, res, next) => {
+  let userId = req.headers["x-user-id"];
+
+  if (!userId) {
+    userId = crypto.randomUUID();
+  }
+
+  req.user = { id: userId };
+  next();
+});
+
+/* === ROUTES === */
+app.use("/api/time-slots", timeSlotsRoutes);
+app.use("/api/bookings", bookingsRoutes);
+
+/* === HEALTH === */
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 /* === SEED SUPABASE === */
 async function seedTimeSlots() {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("time_slots")
     .select("id")
     .limit(1);
+
+  if (error) {
+    console.error("Error checking time_slots:", error);
+    return;
+  }
 
   if (!data || data.length === 0) {
     console.log("Seeding time slots...");
@@ -50,7 +71,16 @@ async function seedTimeSlots() {
   }
 }
 
-seedTimeSlots();
+/* === START SERVER === */
+async function startServer() {
+  await seedTimeSlots(); // 🔥 KRITISK
+
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+startServer();
 
 app.use((req, res, next) => {
   let userId = req.headers["x-user-id"];
