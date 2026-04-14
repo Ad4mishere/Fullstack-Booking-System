@@ -1,6 +1,7 @@
 const schedule = document.getElementById("schedule");
 const bookButton = document.getElementById("book-btn");
 const statusText = document.getElementById("status");
+const API_URL = "https://fullstack-booking-system-production.up.railway.app/";
 
 let selectedTimeSlotId = null;
 let rescheduleOrderNumber = null;
@@ -19,7 +20,7 @@ if (!userId) {
    LOAD TIME SLOTS
 ======================= */
 async function loadTimeSlots() {
-  const response = await fetch("/api/time-slots");
+  const response = await fetch(`${API_URL}/api/time-slots`);
   const data = await response.json();
 
   schedule.innerHTML = "";
@@ -93,8 +94,7 @@ async function bookSelectedTime() {
   if (rescheduleOrderNumber) {
     statusText.textContent = "Bokar om...";
 
-    const response = await fetch(
-      `/api/bookings/${rescheduleOrderNumber}`,
+    const response = await fetch(`${API_URL}/api/bookings/${rescheduleOrderNumber}`,
       {
         method: "PUT",
         headers: {
@@ -125,7 +125,7 @@ async function bookSelectedTime() {
   /* ===== NEW BOOKING ===== */
   statusText.textContent = "Bokar...";
 
-  const response = await fetch("/api/bookings", {
+  const response = await fetch(`${API_URL}/api/bookings`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -205,7 +205,7 @@ cancelBookingBtn.addEventListener("click", () => {
     confirmModal.classList.add("hidden");
     manageBookingMessage.textContent = "Avbokar...";
 
-    const response = await fetch(`/api/bookings/${orderNumber}`, {
+    const response = await fetch(`${API_URL}/api/bookings/${orderNumber}`, {
       method: "DELETE",
       headers: {
         "x-user-id": userId
