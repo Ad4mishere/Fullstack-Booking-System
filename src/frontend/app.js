@@ -4,7 +4,7 @@ const statusText = document.getElementById("status");
 const API_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:3000"
-    : "https://fullstack-booking-system-production.up.railway.app/";
+    : "https://fullstack-booking-system-production.up.railway.app";
 
 let selectedTimeSlotId = null;
 let rescheduleOrderNumber = null;
