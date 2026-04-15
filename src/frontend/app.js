@@ -9,14 +9,6 @@ const API_URL =
 let selectedTimeSlotId = null;
 let rescheduleOrderNumber = null;
 
-import cors from "cors";
-
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://fullstack-booking-system.vercel.app/"
-  ]
-}));
 
 /* =======================
    USER ID (persistens)
