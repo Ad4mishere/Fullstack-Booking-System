@@ -25,7 +25,7 @@ import cors from "cors";
 app.use(cors({
   origin: [
     "http://localhost:3000",
-    "https://fullstack-booking-system.vercel.app/"
+    "https://fullstack-booking-system.vercel.app"
   ]
 }));
 
