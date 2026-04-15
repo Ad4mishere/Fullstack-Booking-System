@@ -78,26 +78,9 @@ async function seedTimeSlots() {
 /* === START SERVER === */
 async function startServer() {
   await seedTimeSlots(); // försöker, men blockerar inte
-
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
 }
 
 startServer();
-
-app.use((req, res, next) => {
-  let userId = req.headers["x-user-id"];
-
-  if (!userId) {
-    // skapa en enkel anonym user
-    userId = crypto.randomUUID();
-  }
-
-  req.user = { id: userId };
-  next();
-});
-
 
 /* === API ROUTES === */
 app.use("/api/time-slots", timeSlotsRoutes);
