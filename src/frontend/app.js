@@ -1,7 +1,10 @@
 const schedule = document.getElementById("schedule");
 const bookButton = document.getElementById("book-btn");
 const statusText = document.getElementById("status");
-const API_URL = "";
+const API_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "https://din-railway-url.up.railway.app";
 
 let selectedTimeSlotId = null;
 let rescheduleOrderNumber = null;
