@@ -11,6 +11,9 @@ import { generateTimeSlots } from "./generateTimeSlots.js";
 
 import timeSlotsRoutes from "./routes/timeSlots.routes.js";
 import bookingsRoutes from "./routes/bookings.routes.js";
+import cors from "cors";
+import { z } from "zod";
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +23,6 @@ const __dirname = path.dirname(__filename);
 
 
 
-import cors from "cors";
 
 app.use(cors({
   origin: [
@@ -31,6 +33,11 @@ app.use(cors({
 
 app.use(express.json());
 app.use(helmet());
+
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
 
 /* === FRONTEND === */
 app.use(express.static(path.join(__dirname, "frontend")));
@@ -43,15 +50,26 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
-/* 🔐 USER MIDDLEWARE */
+/* USER MIDDLEWARE */
+
+const userIdSchema = z.string().uuid();
+
 app.use((req, res, next) => {
   let userId = req.headers["x-user-id"];
 
+  // Om ingen finns → skapa ny (OK)
   if (!userId) {
     userId = crypto.randomUUID();
   }
 
-  req.user = { id: userId };
+  // Validera
+  const parsed = userIdSchema.safeParse(userId);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid user ID" });
+  }
+
+  req.user = { id: parsed.data };
   next();
 });
 
@@ -93,9 +111,6 @@ async function startServer() {
 
 startServer();
 
-/* === API ROUTES === */
-app.use("/api/time-slots", timeSlotsRoutes);
-app.use("/api/bookings", bookingsRoutes);
 
 /* === TEST ROUTE (kan tas bort senare) === */
 app.get("/test-db", async (req, res) => {
@@ -108,10 +123,12 @@ app.get("/test-db", async (req, res) => {
   res.json(data);
 });
 
-/* === HEALTH === */
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: "Internal server error" });
 });
+
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
