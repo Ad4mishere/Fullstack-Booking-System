@@ -39,7 +39,7 @@ jobs:
         run: docker build -t booking-app .
 
       - name: Scan Docker image (Trivy)
-        run: docker run --rm aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL booking-app
+        run: docker run --rm aquasec/trivy:0.50.0 image --exit-code 1 --severity HIGH,CRITICAL booking-app
 
       - name: Run container
         run: |
