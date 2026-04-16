@@ -5,17 +5,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 import helmet from "helmet";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 
 import { supabase } from "./supabaseClient.js";
 import { generateTimeSlots } from "./generateTimeSlots.js";
 
 import timeSlotsRoutes from "./routes/timeSlots.routes.js";
 import bookingsRoutes from "./routes/bookings.routes.js";
-import cors from "cors";
-import { z } from "zod";
-import session from "express-session";
-
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,40 +20,40 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/* =======================
+   SECURITY MIDDLEWARE
+======================= */
 
-
-app.use(session({
-  secret: process.env.SESSION_SECRET || "dev-secret",
-  resave: false,
-  saveUninitialized: true,
-  cookie: {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: false // true i production (HTTPS)
-  }
-}));
-
+app.use(helmet());
 
 app.use(cors({
   origin: [
     "http://localhost:3000",
     "https://fullstack-booking-system.vercel.app"
-  ]
+  ],
+  credentials: true // 🔥 KRITISK för cookies
 }));
 
 app.use(express.json());
-app.use(helmet());
 
-// Logging
+app.use(cookieParser(process.env.COOKIE_SECRET || "dev-secret"));
+
+/* =======================
+   LOGGING
+======================= */
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 
-// Static frontend
+/* =======================
+   STATIC FRONTEND
+======================= */
 app.use(express.static(path.join(__dirname, "frontend")));
 
-// Rate limiter (endast API)
+/* =======================
+   RATE LIMIT
+======================= */
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -65,24 +62,26 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 /* =======================
-   USER MIDDLEWARE (FIXAD)
+   USER MIDDLEWARE (SIGNED COOKIE)
 ======================= */
 
-const userIdSchema = z.string().min(1);
+const isProduction = process.env.NODE_ENV === "production";
 
 const userMiddleware = (req, res, next) => {
-  let userId;
+  let userId = req.signedCookies.user_id;
 
-  // TEST MODE (Postman / CI)
-  if (process.env.NODE_ENV === "test" && req.headers["x-user-id"]) {
-    userId = req.headers["x-user-id"];
-  } 
-  // NORMAL MODE
-  else {
-    if (!req.session.userId) {
-      req.session.userId = crypto.randomUUID();
-    }
-    userId = req.session.userId;
+  if (!userId) {
+    userId = crypto.randomUUID();
+
+    res.cookie("user_id", userId, {
+      httpOnly: true,
+      secure: isProduction,      // 🔐 HTTPS only in prod
+      sameSite: "lax",
+      signed: true,              // 🔥 SKYDD mot manipulation
+      maxAge: 1000 * 60 * 60 * 24 * 7 // 7 dagar
+    });
+
+    console.log("New user created:", userId);
   }
 
   req.user = { id: userId };
@@ -93,10 +92,9 @@ const userMiddleware = (req, res, next) => {
    ROUTES
 ======================= */
 
-// Public route
 app.use("/api/time-slots", timeSlotsRoutes);
 
-// 🔥 KORREKT: middleware + route tillsammans
+// 🔐 Skyddad route
 app.use("/api/bookings", userMiddleware, bookingsRoutes);
 
 /* =======================
@@ -132,18 +130,10 @@ async function seedTimeSlots() {
   }
 }
 
-/* =======================
-   START SERVER
-======================= */
-
-async function startServer() {
-  await seedTimeSlots();
-}
-
-startServer();
+seedTimeSlots();
 
 /* =======================
-   DEBUG ROUTE
+   DEBUG
 ======================= */
 
 app.get("/test-db", async (req, res) => {
@@ -161,12 +151,12 @@ app.get("/test-db", async (req, res) => {
 ======================= */
 
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error("GLOBAL ERROR:", err);
   res.status(500).json({ error: "Internal server error" });
 });
 
 /* =======================
-   LISTEN
+   START SERVER
 ======================= */
 
 app.listen(PORT, () => {

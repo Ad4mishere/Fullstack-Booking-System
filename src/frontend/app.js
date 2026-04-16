@@ -1,6 +1,7 @@
 const schedule = document.getElementById("schedule");
 const bookButton = document.getElementById("book-btn");
 const statusText = document.getElementById("status");
+
 const API_URL =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1"
@@ -10,30 +11,41 @@ const API_URL =
 let selectedTimeSlotId = null;
 let rescheduleOrderNumber = null;
 
-
 /* =======================
-   USER ID (persistens)
+   FETCH WRAPPER (SECURE)
 ======================= */
-let userId = localStorage.getItem("user_id");
+async function apiFetch(url, options = {}) {
+  try {
+    const response = await fetch(url, {
+      credentials: "include", // 🔐 COOKIE SUPPORT
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      },
+      ...options
+    });
 
-if (!userId) {
-  userId = crypto.randomUUID();
-  localStorage.setItem("user_id", userId);
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      console.warn("API ERROR:", data);
+      throw new Error(data.error || "Request failed");
+    }
+
+    return data;
+
+  } catch (err) {
+    console.error("FETCH ERROR:", err);
+    throw err;
+  }
 }
 
 /* =======================
    LOAD TIME SLOTS
 ======================= */
-
 async function loadTimeSlots() {
   try {
-    const response = await fetch(`${API_URL}/api/time-slots`);
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch time slots");
-    }
-
-    const data = await response.json();
+    const data = await apiFetch(`${API_URL}/api/time-slots`);
 
     schedule.innerHTML = "";
 
@@ -79,8 +91,8 @@ async function loadTimeSlots() {
       daySection.appendChild(slotsContainer);
       schedule.appendChild(daySection);
     }
+
   } catch (err) {
-    console.error(err);
     schedule.textContent = "Fel vid laddning av tider";
   }
 }
@@ -89,17 +101,12 @@ async function loadTimeSlots() {
    UI SELECT
 ======================= */
 function highlightSelected() {
-  const allSlots = document.querySelectorAll(".slot");
-
-  for (const slot of allSlots) {
+  document.querySelectorAll(".slot").forEach(slot => {
     slot.classList.remove("selected");
-  }
-
-  for (const slot of allSlots) {
     if (Number(slot.dataset.id) === selectedTimeSlotId) {
       slot.classList.add("selected");
     }
-  }
+  });
 }
 
 /* =======================
@@ -111,95 +118,64 @@ async function bookSelectedTime() {
     return;
   }
 
-  /* ===== RESCHEDULE ===== */
-  if (rescheduleOrderNumber) {
-    statusText.textContent = "Bokar om...";
+  try {
+    /* ===== RESCHEDULE ===== */
+    if (rescheduleOrderNumber) {
+      statusText.textContent = "Bokar om...";
 
-    const response = await fetch(`${API_URL}/api/bookings/${rescheduleOrderNumber}`,
-      {
+      await apiFetch(`${API_URL}/api/bookings/${rescheduleOrderNumber}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": userId
-        },
         body: JSON.stringify({
           newTimeSlotId: selectedTimeSlotId
         })
-      }
-    );
+      });
 
-    const data = await response.json();
+      statusText.textContent = "Bokningen är ombokad";
+    } else {
+      /* ===== NEW BOOKING ===== */
+      statusText.textContent = "Bokar...";
 
-    if (!response.ok) {
-      statusText.textContent = data.error || "Kunde inte boka om";
-      return;
+      const data = await apiFetch(`${API_URL}/api/bookings`, {
+        method: "POST",
+        body: JSON.stringify({
+          timeSlotId: selectedTimeSlotId
+        })
+      });
+
+      statusText.textContent =
+        `Bokning klar! Ordernummer: ${data.orderNumber}`;
     }
 
-    statusText.textContent = "Bokningen är ombokad";
-
-    rescheduleOrderNumber = null;
     selectedTimeSlotId = null;
+    rescheduleOrderNumber = null;
     loadTimeSlots();
-    return;
+
+  } catch (err) {
+    statusText.textContent = err.message || "Något gick fel";
   }
-
-  /* ===== NEW BOOKING ===== */
-  statusText.textContent = "Bokar...";
-
-  const response = await fetch(`${API_URL}/api/bookings`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-user-id": userId
-    },
-    body: JSON.stringify({
-      timeSlotId: selectedTimeSlotId
-    })
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    statusText.textContent = data.error || "Något gick fel";
-    return;
-  }
-
-  statusText.textContent = `Bokning klar! Ordernummer: ${data.orderNumber}`;
-
-  selectedTimeSlotId = null;
-  loadTimeSlots();
 }
 
 /* =======================
    BUTTON CLICK
 ======================= */
 bookButton.onclick = () => {
-  if (selectedTimeSlotId === null) {
-    statusText.textContent = "Välj en tid först";
-    return;
-  }
-
   bookSelectedTime();
 };
 
 /* =======================
-   MODAL OPEN/CLOSE
+   MODAL
 ======================= */
 const manageBookingBtn = document.getElementById("manage-booking-btn");
 const modal = document.getElementById("manageBookingModal");
 
-manageBookingBtn.addEventListener("click", () => {
+manageBookingBtn.onclick = () => {
   modal.classList.remove("hidden");
-
-  // 🔥 viktigt: reset state när man öppnar
   rescheduleOrderNumber = null;
-});
+};
 
-const closeManageBookingBtn = document.getElementById("closeManageBookingBtn");
-
-closeManageBookingBtn.addEventListener("click", () => {
+document.getElementById("closeManageBookingBtn").onclick = () => {
   modal.classList.add("hidden");
-});
+};
 
 /* =======================
    CANCEL BOOKING
@@ -209,10 +185,8 @@ const orderNumberInput = document.getElementById("orderNumberInput");
 const manageBookingMessage = document.getElementById("manageBookingMessage");
 
 const confirmModal = document.getElementById("confirmCancelModal");
-const confirmYes = document.getElementById("confirmCancelYes");
-const confirmNo = document.getElementById("confirmCancelNo");
 
-cancelBookingBtn.addEventListener("click", () => {
+cancelBookingBtn.onclick = () => {
   const orderNumber = orderNumberInput.value.trim();
 
   if (!orderNumber) {
@@ -222,51 +196,34 @@ cancelBookingBtn.addEventListener("click", () => {
 
   confirmModal.classList.remove("hidden");
 
-  confirmYes.onclick = async () => {
+  document.getElementById("confirmCancelYes").onclick = async () => {
     confirmModal.classList.add("hidden");
     manageBookingMessage.textContent = "Avbokar...";
 
-    const response = await fetch(`${API_URL}/api/bookings/${orderNumber}`, {
-      method: "DELETE",
-      headers: {
-        "x-user-id": userId
-      }
-    });
+    try {
+      await apiFetch(`${API_URL}/api/bookings/${orderNumber}`, {
+        method: "DELETE"
+      });
 
-    const data = await response.json();
+      manageBookingMessage.textContent = "Bokningen är avbokad";
+      orderNumberInput.value = "";
+      loadTimeSlots();
 
-    if (!response.ok) {
+    } catch (err) {
       manageBookingMessage.textContent =
-        data.error || "Kunde inte avboka";
-      return;
+        err.message || "Kunde inte avboka";
     }
-
-    // 🔥 KRITISK FIX
-    rescheduleOrderNumber = null;
-
-    manageBookingMessage.textContent = "Bokningen är avbokad";
-    orderNumberInput.value = "";
-    loadTimeSlots();
-
-    setTimeout(() => {
-      modal.classList.add("hidden");
-      manageBookingMessage.textContent = "";
-    }, 3000);
   };
 
-  confirmNo.onclick = () => {
+  document.getElementById("confirmCancelNo").onclick = () => {
     confirmModal.classList.add("hidden");
   };
-});
+};
 
 /* =======================
-   RESCHEDULE START
+   RESCHEDULE
 ======================= */
-const rescheduleBookingBtn = document.getElementById(
-  "rescheduleBookingBtn"
-);
-
-rescheduleBookingBtn.addEventListener("click", () => {
+document.getElementById("rescheduleBookingBtn").onclick = () => {
   const orderNumber = orderNumberInput.value.trim();
 
   if (!orderNumber) {
@@ -277,10 +234,10 @@ rescheduleBookingBtn.addEventListener("click", () => {
   rescheduleOrderNumber = orderNumber;
 
   manageBookingMessage.textContent =
-    "Välj en ny tid i listan och klicka på 'Boka vald tid'";
+    "Välj ny tid och klicka på boka";
 
   modal.classList.add("hidden");
-});
+};
 
 /* =======================
    INIT
