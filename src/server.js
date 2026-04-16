@@ -14,15 +14,15 @@ import bookingsRoutes from "./routes/bookings.routes.js";
 import cors from "cors";
 import { z } from "zod";
 
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
-
+/* =======================
+   MIDDLEWARE
+======================= */
 
 app.use(cors({
   origin: [
@@ -34,15 +34,16 @@ app.use(cors({
 app.use(express.json());
 app.use(helmet());
 
+// Logging
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 
-/* === FRONTEND === */
+// Static frontend
 app.use(express.static(path.join(__dirname, "frontend")));
 
-/* 🔥 RATE LIMITER (endast API) */
+// Rate limiter (endast API)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -50,53 +51,59 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
-/* USER MIDDLEWARE */
-
-// 🔐 USER MIDDLEWARE (endast för bookings)
+/* =======================
+   USER MIDDLEWARE (FIXAD)
+======================= */
 
 const userIdSchema = z.string().uuid();
 
 const userMiddleware = (req, res, next) => {
   let userId = req.headers["x-user-id"];
 
-  // 🔹 Normalisera (kan vara array)
   if (Array.isArray(userId)) {
     userId = userId[0];
   }
 
-  // 🔹 Om ingen eller ogiltig "tom" → skapa ny user
+  // 🔥 KRITISK FIX: aldrig returnera 400 här
   if (!userId || userId === "null" || userId === "undefined") {
     userId = crypto.randomUUID();
   } else {
-    // 🔹 Validera endast om något skickas
     const parsed = userIdSchema.safeParse(userId);
 
     if (!parsed.success) {
-      return res.status(400).json({ error: "Invalid user ID" });
+      console.warn("Invalid userId → fallback to random UUID");
+      userId = crypto.randomUUID(); // istället för 400
+    } else {
+      userId = parsed.data;
     }
-
-    userId = parsed.data;
   }
 
   req.user = { id: userId };
   next();
 };
 
-/* === ROUTES === */
+/* =======================
+   ROUTES
+======================= */
+
+// Public route
 app.use("/api/time-slots", timeSlotsRoutes);
 
-// 🔥 VIKTIGT: middleware först
-app.use("/api/bookings", userMiddleware);
+// 🔥 KORREKT: middleware + route tillsammans
+app.use("/api/bookings", userMiddleware, bookingsRoutes);
 
-// sen routes
-app.use("/api/bookings", bookingsRoutes)
+/* =======================
+   HEALTH
+======================= */
 
-/* === HEALTH === */
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-/* === SEED SUPABASE === */
+/* =======================
+   SEED SUPABASE
+======================= */
+
 async function seedTimeSlots() {
   try {
     const { data, error } = await supabase
@@ -106,7 +113,7 @@ async function seedTimeSlots() {
 
     if (error) {
       console.error("Seed check failed:", error);
-      return; // ❗ hoppa över seed
+      return;
     }
 
     if (!data || data.length === 0) {
@@ -118,15 +125,20 @@ async function seedTimeSlots() {
   }
 }
 
-/* === START SERVER === */
+/* =======================
+   START SERVER
+======================= */
+
 async function startServer() {
-  await seedTimeSlots(); // försöker, men blockerar inte
+  await seedTimeSlots();
 }
 
 startServer();
 
+/* =======================
+   DEBUG ROUTE
+======================= */
 
-/* === TEST ROUTE (kan tas bort senare) === */
 app.get("/test-db", async (req, res) => {
   const { data, error } = await supabase
     .from("time_slots")
@@ -137,12 +149,18 @@ app.get("/test-db", async (req, res) => {
   res.json(data);
 });
 
+/* =======================
+   ERROR HANDLER
+======================= */
 
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
 });
 
+/* =======================
+   LISTEN
+======================= */
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

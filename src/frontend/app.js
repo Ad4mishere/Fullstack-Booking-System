@@ -24,6 +24,7 @@ if (!userId) {
 /* =======================
    LOAD TIME SLOTS
 ======================= */
+
 async function loadTimeSlots() {
   try {
     const response = await fetch(`${API_URL}/api/time-slots`);
