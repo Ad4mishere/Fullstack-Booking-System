@@ -20,6 +20,8 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const isProduction = process.env.NODE_ENV === "production";
+
 /* =======================
    SECURITY MIDDLEWARE
 ======================= */
@@ -31,7 +33,7 @@ app.use(cors({
     "http://localhost:3000",
     "https://fullstack-booking-system.vercel.app"
   ],
-  credentials: true // 🔥 KRITISK för cookies
+  credentials: true
 }));
 
 app.use(express.json());
@@ -62,11 +64,8 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 /* =======================
-   USER MIDDLEWARE (SIGNED COOKIE)
+   USER MIDDLEWARE (FIXAD)
 ======================= */
-
-const isProduction = process.env.NODE_ENV === "production";
-
 const userMiddleware = (req, res, next) => {
   let userId = req.signedCookies.user_id;
 
@@ -75,10 +74,10 @@ const userMiddleware = (req, res, next) => {
 
     res.cookie("user_id", userId, {
       httpOnly: true,
-      secure: isProduction,      // 🔐 HTTPS only in prod
-      sameSite: "lax",
-      signed: true,              // 🔥 SKYDD mot manipulation
-      maxAge: 1000 * 60 * 60 * 24 * 7 // 7 dagar
+      secure: isProduction,               // 🔐 true i prod
+      sameSite: isProduction ? "none" : "lax", // 🔥 FIX
+      signed: true,
+      maxAge: 1000 * 60 * 60 * 24 * 7
     });
 
     console.log("New user created:", userId);
@@ -93,8 +92,6 @@ const userMiddleware = (req, res, next) => {
 ======================= */
 
 app.use("/api/time-slots", timeSlotsRoutes);
-
-// 🔐 Skyddad route
 app.use("/api/bookings", userMiddleware, bookingsRoutes);
 
 /* =======================

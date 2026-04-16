@@ -1,20 +1,23 @@
-# Use official Node image
-FROM node:20
+# ---------- BUILD STAGE ----------
+FROM node:20 AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm ci --omit=dev
-
-# Copy all source code
 COPY . .
 
-# Expose port
+# ---------- PRODUCTION STAGE ----------
+FROM node:20
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app .
+
 EXPOSE 3000
 
-# Start app
 CMD ["npm", "start"]
