@@ -52,30 +52,44 @@ app.use("/api", limiter);
 
 /* USER MIDDLEWARE */
 
+// 🔐 USER MIDDLEWARE (endast för bookings)
+
 const userIdSchema = z.string().uuid();
 
-app.use((req, res, next) => {
+const userMiddleware = (req, res, next) => {
   let userId = req.headers["x-user-id"];
 
-  // Om ingen finns → skapa ny (OK)
-  if (!userId) {
+  // 🔹 Normalisera (kan vara array)
+  if (Array.isArray(userId)) {
+    userId = userId[0];
+  }
+
+  // 🔹 Om ingen eller ogiltig "tom" → skapa ny user
+  if (!userId || userId === "null" || userId === "undefined") {
     userId = crypto.randomUUID();
+  } else {
+    // 🔹 Validera endast om något skickas
+    const parsed = userIdSchema.safeParse(userId);
+
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+
+    userId = parsed.data;
   }
 
-  // Validera
-  const parsed = userIdSchema.safeParse(userId);
-
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid user ID" });
-  }
-
-  req.user = { id: parsed.data };
+  req.user = { id: userId };
   next();
-});
+};
 
 /* === ROUTES === */
 app.use("/api/time-slots", timeSlotsRoutes);
-app.use("/api/bookings", bookingsRoutes);
+
+// 🔥 VIKTIGT: middleware först
+app.use("/api/bookings", userMiddleware);
+
+// sen routes
+app.use("/api/bookings", bookingsRoutes)
 
 /* === HEALTH === */
 app.get("/health", (req, res) => {

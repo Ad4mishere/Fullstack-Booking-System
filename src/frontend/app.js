@@ -2,7 +2,8 @@ const schedule = document.getElementById("schedule");
 const bookButton = document.getElementById("book-btn");
 const statusText = document.getElementById("status");
 const API_URL =
-  window.location.hostname === "localhost"
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
     ? "http://localhost:3000"
     : "https://fullstack-booking-system-production.up.railway.app";
 
@@ -24,47 +25,62 @@ if (!userId) {
    LOAD TIME SLOTS
 ======================= */
 async function loadTimeSlots() {
-  const response = await fetch(`${API_URL}/api/time-slots`);
-  const data = await response.json();
+  try {
+    const response = await fetch(`${API_URL}/api/time-slots`);
 
-  schedule.innerHTML = "";
-
-  const groupedByDate = {};
-
-  for (const slot of data) {
-    if (!groupedByDate[slot.date]) {
-      groupedByDate[slot.date] = [];
-    }
-    groupedByDate[slot.date].push(slot);
-  }
-
-  for (const date in groupedByDate) {
-    const daySection = document.createElement("div");
-    daySection.className = "day";
-
-    const heading = document.createElement("h2");
-    heading.textContent = date;
-
-    const slotsContainer = document.createElement("div");
-    slotsContainer.className = "slots";
-
-    for (const slot of groupedByDate[date]) {
-      const slotDiv = document.createElement("div");
-      slotDiv.className = "slot";
-      slotDiv.textContent = slot.start_time;
-      slotDiv.dataset.id = slot.id;
-
-      slotDiv.onclick = () => {
-        selectedTimeSlotId = slot.id;
-        highlightSelected();
-      };
-
-      slotsContainer.appendChild(slotDiv);
+    if (!response.ok) {
+      throw new Error("Failed to fetch time slots");
     }
 
-    daySection.appendChild(heading);
-    daySection.appendChild(slotsContainer);
-    schedule.appendChild(daySection);
+    const data = await response.json();
+
+    schedule.innerHTML = "";
+
+    if (!data || data.length === 0) {
+      schedule.textContent = "Inga tider tillgängliga";
+      return;
+    }
+
+    const groupedByDate = {};
+
+    for (const slot of data) {
+      if (!groupedByDate[slot.date]) {
+        groupedByDate[slot.date] = [];
+      }
+      groupedByDate[slot.date].push(slot);
+    }
+
+    for (const date in groupedByDate) {
+      const daySection = document.createElement("div");
+      daySection.className = "day";
+
+      const heading = document.createElement("h2");
+      heading.textContent = date;
+
+      const slotsContainer = document.createElement("div");
+      slotsContainer.className = "slots";
+
+      for (const slot of groupedByDate[date]) {
+        const slotDiv = document.createElement("div");
+        slotDiv.className = "slot";
+        slotDiv.textContent = slot.start_time;
+        slotDiv.dataset.id = slot.id;
+
+        slotDiv.onclick = () => {
+          selectedTimeSlotId = slot.id;
+          highlightSelected();
+        };
+
+        slotsContainer.appendChild(slotDiv);
+      }
+
+      daySection.appendChild(heading);
+      daySection.appendChild(slotsContainer);
+      schedule.appendChild(daySection);
+    }
+  } catch (err) {
+    console.error(err);
+    schedule.textContent = "Fel vid laddning av tider";
   }
 }
 
