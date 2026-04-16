@@ -38,8 +38,15 @@ jobs:
       - name: Build Docker image
         run: docker build -t booking-app .
 
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.0_Linux-64bit.deb
+          sudo dpkg -i trivy_0.50.0_Linux-64bit.deb
+
       - name: Scan Docker image (Trivy)
-        run: docker run --rm aquasec/trivy:0.50.0 image --exit-code 1 --severity HIGH,CRITICAL booking-app
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL booking-app
 
       - name: Run container
         run: |
