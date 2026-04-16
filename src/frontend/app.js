@@ -112,47 +112,29 @@ function highlightSelected() {
 /* =======================
    BOOK / RESCHEDULE
 ======================= */
-async function bookSelectedTime() {
-  if (selectedTimeSlotId === null) {
-    statusText.textContent = "Välj en tid först";
-    return;
-  }
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: "include", // 🔥 DETTA ÄR HELA GREJEN
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+
+  let data;
 
   try {
-    /* ===== RESCHEDULE ===== */
-    if (rescheduleOrderNumber) {
-      statusText.textContent = "Bokar om...";
-
-      await apiFetch(`${API_URL}/api/bookings/${rescheduleOrderNumber}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          newTimeSlotId: selectedTimeSlotId
-        })
-      });
-
-      statusText.textContent = "Bokningen är ombokad";
-    } else {
-      /* ===== NEW BOOKING ===== */
-      statusText.textContent = "Bokar...";
-
-      const data = await apiFetch(`${API_URL}/api/bookings`, {
-        method: "POST",
-        body: JSON.stringify({
-          timeSlotId: selectedTimeSlotId
-        })
-      });
-
-      statusText.textContent =
-        `Bokning klar! Ordernummer: ${data.orderNumber}`;
-    }
-
-    selectedTimeSlotId = null;
-    rescheduleOrderNumber = null;
-    loadTimeSlots();
-
-  } catch (err) {
-    statusText.textContent = err.message || "Något gick fel";
+    data = await response.json();
+  } catch {
+    throw new Error("Invalid server response");
   }
+
+  if (!response.ok) {
+    throw new Error(data.error || "Request failed");
+  }
+
+  return data;
 }
 
 /* =======================
