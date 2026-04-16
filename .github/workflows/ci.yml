@@ -48,7 +48,7 @@ jobs:
 
       - name: Run container
         run: |
-          docker run -d -p 3000:3000 \
+          docker run -d -p 3001:3000 \
             -e SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             -e SUPABASE_KEY=${{ secrets.SUPABASE_KEY }} \
             --name app \
