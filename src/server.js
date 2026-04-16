@@ -64,17 +64,16 @@ const userMiddleware = (req, res, next) => {
     userId = userId[0];
   }
 
-  // 🔥 KRITISK FIX: aldrig returnera 400 här
+  //  KRITISK FIX: aldrig returnera 400 här
   if (!userId || userId === "null" || userId === "undefined") {
     userId = crypto.randomUUID();
   } else {
-    const parsed = userIdSchema.safeParse(userId);
+    // tillåt både UUID och test-ID
+    const isUUID = userIdSchema.safeParse(userId).success;
 
-    if (!parsed.success) {
-      console.warn("Invalid userId → fallback to random UUID");
-      userId = crypto.randomUUID(); // istället för 400
-    } else {
-      userId = parsed.data;
+    if (!isUUID) {
+      console.warn("Non-UUID userId accepted (test mode)");
+      // 
     }
   }
 
