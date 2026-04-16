@@ -13,6 +13,9 @@ import timeSlotsRoutes from "./routes/timeSlots.routes.js";
 import bookingsRoutes from "./routes/bookings.routes.js";
 import cors from "cors";
 import { z } from "zod";
+import session from "express-session";
+
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,9 +23,19 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/* =======================
-   MIDDLEWARE
-======================= */
+
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || "dev-secret",
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false // true i production (HTTPS)
+  }
+}));
+
 
 app.use(cors({
   origin: [
@@ -55,26 +68,21 @@ app.use("/api", limiter);
    USER MIDDLEWARE (FIXAD)
 ======================= */
 
-const userIdSchema = z.string().uuid();
+const userIdSchema = z.string().min(1);
 
 const userMiddleware = (req, res, next) => {
-  let userId = req.headers["x-user-id"];
+  let userId;
 
-  if (Array.isArray(userId)) {
-    userId = userId[0];
-  }
-
-  //  KRITISK FIX: aldrig returnera 400 här
-  if (!userId || userId === "null" || userId === "undefined") {
-    userId = crypto.randomUUID();
-  } else {
-    // tillåt både UUID och test-ID
-    const isUUID = userIdSchema.safeParse(userId).success;
-
-    if (!isUUID) {
-      console.warn("Non-UUID userId accepted (test mode)");
-      // 
+  // TEST MODE (Postman / CI)
+  if (process.env.NODE_ENV === "test" && req.headers["x-user-id"]) {
+    userId = req.headers["x-user-id"];
+  } 
+  // NORMAL MODE
+  else {
+    if (!req.session.userId) {
+      req.session.userId = crypto.randomUUID();
     }
+    userId = req.session.userId;
   }
 
   req.user = { id: userId };
