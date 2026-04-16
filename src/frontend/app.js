@@ -15,29 +15,29 @@ let rescheduleOrderNumber = null;
    FETCH WRAPPER (SECURE)
 ======================= */
 async function apiFetch(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: "include", // 🔥 KRITISK
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+
+  let data;
+
   try {
-    const response = await fetch(url, {
-      credentials: "include", // 🔐 COOKIE SUPPORT
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {})
-      },
-      ...options
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      console.warn("API ERROR:", data);
-      throw new Error(data.error || "Request failed");
-    }
-
-    return data;
-
-  } catch (err) {
-    console.error("FETCH ERROR:", err);
-    throw err;
+    data = await response.json();
+  } catch {
+    throw new Error("Invalid server response");
   }
+
+  if (!response.ok) {
+    console.warn("API ERROR:", data);
+    throw new Error(data.error || "Request failed");
+  }
+
+  return data;
 }
 
 /* =======================
@@ -56,12 +56,12 @@ async function loadTimeSlots() {
 
     const groupedByDate = {};
 
-    for (const slot of data) {
+    data.forEach(slot => {
       if (!groupedByDate[slot.date]) {
         groupedByDate[slot.date] = [];
       }
       groupedByDate[slot.date].push(slot);
-    }
+    });
 
     for (const date in groupedByDate) {
       const daySection = document.createElement("div");
@@ -73,7 +73,7 @@ async function loadTimeSlots() {
       const slotsContainer = document.createElement("div");
       slotsContainer.className = "slots";
 
-      for (const slot of groupedByDate[date]) {
+      groupedByDate[date].forEach(slot => {
         const slotDiv = document.createElement("div");
         slotDiv.className = "slot";
         slotDiv.textContent = slot.start_time;
@@ -85,7 +85,7 @@ async function loadTimeSlots() {
         };
 
         slotsContainer.appendChild(slotDiv);
-      }
+      });
 
       daySection.appendChild(heading);
       daySection.appendChild(slotsContainer);
@@ -93,6 +93,7 @@ async function loadTimeSlots() {
     }
 
   } catch (err) {
+    console.error(err);
     schedule.textContent = "Fel vid laddning av tider";
   }
 }
@@ -103,6 +104,7 @@ async function loadTimeSlots() {
 function highlightSelected() {
   document.querySelectorAll(".slot").forEach(slot => {
     slot.classList.remove("selected");
+
     if (Number(slot.dataset.id) === selectedTimeSlotId) {
       slot.classList.add("selected");
     }
@@ -112,29 +114,46 @@ function highlightSelected() {
 /* =======================
    BOOK / RESCHEDULE
 ======================= */
-async function apiFetch(url, options = {}) {
-  const response = await fetch(url, {
-    credentials: "include", // 🔥 DETTA ÄR HELA GREJEN
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
-
-  let data;
+async function bookSelectedTime() {
+  if (selectedTimeSlotId === null) {
+    statusText.textContent = "Välj en tid först";
+    return;
+  }
 
   try {
-    data = await response.json();
-  } catch {
-    throw new Error("Invalid server response");
-  }
+    if (rescheduleOrderNumber) {
+      statusText.textContent = "Bokar om...";
 
-  if (!response.ok) {
-    throw new Error(data.error || "Request failed");
-  }
+      await apiFetch(`${API_URL}/api/bookings/${rescheduleOrderNumber}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          newTimeSlotId: selectedTimeSlotId
+        })
+      });
 
-  return data;
+      statusText.textContent = "Bokningen är ombokad";
+    } else {
+      statusText.textContent = "Bokar...";
+
+      const data = await apiFetch(`${API_URL}/api/bookings`, {
+        method: "POST",
+        body: JSON.stringify({
+          timeSlotId: selectedTimeSlotId
+        })
+      });
+
+      statusText.textContent =
+        `Bokning klar! Ordernummer: ${data.orderNumber}`;
+    }
+
+    selectedTimeSlotId = null;
+    rescheduleOrderNumber = null;
+    loadTimeSlots();
+
+  } catch (err) {
+    console.error(err);
+    statusText.textContent = err.message || "Något gick fel";
+  }
 }
 
 /* =======================
@@ -192,6 +211,7 @@ cancelBookingBtn.onclick = () => {
       loadTimeSlots();
 
     } catch (err) {
+      console.error(err);
       manageBookingMessage.textContent =
         err.message || "Kunde inte avboka";
     }
