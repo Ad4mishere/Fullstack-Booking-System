@@ -3,16 +3,24 @@ import crypto from "crypto";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
+// 🔥 global test-user (persistent i CI)
+let testUserId = "test-user";
+
 export function authMiddleware(req, res, next) {
-  const token = req.cookies.token;
+  let token = req.cookies.token;
 
+  // =========================
+  // TEST MODE
+  // =========================
+  if (process.env.NODE_ENV === "test") {
+    req.user = { id: testUserId };
+    return next();
+  }
+
+  // =========================
+  // NORMAL MODE
+  // =========================
   if (!token) {
-    // TEST / CI fallback
-    if (process.env.NODE_ENV === "test") {
-      req.user = { id: "test-user" };
-      return next();
-    }
-
     const userId = crypto.randomUUID();
 
     const newToken = jwt.sign(
@@ -21,12 +29,12 @@ export function authMiddleware(req, res, next) {
       { expiresIn: "7d" }
     );
 
-    res.cookie("token", token, {
-        httpOnly: true,
-        secure: false, // 👈 ändra till false temporärt
-        sameSite: "lax"
-        });
-    
+    res.cookie("token", newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+    });
+
     req.user = { id: userId };
     return next();
   }
