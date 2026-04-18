@@ -3,6 +3,7 @@ import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { supabase } from "../supabaseClient.js";
 import { z } from "zod";
+import { logger } from "../utils/logger.js"; // ADDED
 
 const router = express.Router();
 
@@ -34,32 +35,26 @@ const updateBookingSchema = z.object({
 });
 
 /* =======================
-   LOGGING HELPER
-======================= */
-function log(action, data = {}) {
-  console.log(`[BOOKING] ${action}`, {
-    ...data,
-    timestamp: new Date().toISOString()
-  });
-}
-
-/* =======================
    CREATE BOOKING
 ======================= */
 router.post("/", async (req, res) => {
   try {
-    log("CREATE_ATTEMPT", { body: req.body });
+    logger.info({
+      event: "booking_create_attempt"
+    });
 
     const parsed = createBookingSchema.safeParse(req.body);
 
     if (!parsed.success) {
+      logger.warn({
+        event: "booking_create_invalid_input"
+      });
       return res.status(400).json({ error: "Invalid input" });
     }
 
     const { timeSlotId } = parsed.data;
     const userId = req.user.id;
 
-    // 1. Kontrollera att slot finns
     const { data: slot, error: slotError } = await supabase
       .from("time_slots")
       .select("*")
@@ -67,10 +62,13 @@ router.post("/", async (req, res) => {
       .single();
 
     if (slotError || !slot) {
+      logger.warn({
+        event: "booking_create_slot_not_found",
+        timeSlotId
+      });
       return res.status(404).json({ error: "Time slot not found" });
     }
 
-    // 2. Race condition-safe booking
     const { data: updatedSlot } = await supabase
       .from("time_slots")
       .update({ is_booked: true })
@@ -79,15 +77,17 @@ router.post("/", async (req, res) => {
       .select();
 
     if (!updatedSlot || updatedSlot.length === 0) {
+      logger.warn({
+        event: "booking_create_already_booked",
+        timeSlotId
+      });
       return res.status(400).json({ error: "Time slot already booked" });
     }
 
-    // 3. Skapa ordernummer
     const orderNumber = `ORD-${crypto.randomUUID()
       .slice(0, 8)
       .toUpperCase()}`;
 
-    // 4. Skapa booking
     const { error: insertError } = await supabase
       .from("bookings")
       .insert({
@@ -97,16 +97,25 @@ router.post("/", async (req, res) => {
       });
 
     if (insertError) {
-      log("CREATE_FAILED", { insertError });
+      logger.error({
+        event: "booking_create_failed",
+        message: insertError.message
+      });
       return res.status(500).json({ error: "Failed to create booking" });
     }
 
-    log("CREATE_SUCCESS", { orderNumber, userId });
+    logger.info({
+      event: "booking_create_success",
+      orderNumber
+    });
 
     return res.status(201).json({ orderNumber });
 
   } catch (err) {
-    log("CREATE_CRASH", { err });
+    logger.error({
+      event: "booking_create_crash",
+      message: err.message
+    });
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -116,15 +125,19 @@ router.post("/", async (req, res) => {
 ======================= */
 router.put("/:orderNumber", async (req, res) => {
   try {
-    log("UPDATE_ATTEMPT", { params: req.params, body: req.body });
+    logger.info({
+      event: "booking_update_attempt"
+    });
 
     const parsedParams = orderNumberSchema.safeParse(req.params);
     if (!parsedParams.success) {
+      logger.warn({ event: "booking_update_invalid_order_number" });
       return res.status(400).json({ error: "Invalid order number" });
     }
 
     const parsedBody = updateBookingSchema.safeParse(req.body);
     if (!parsedBody.success) {
+      logger.warn({ event: "booking_update_invalid_input" });
       return res.status(400).json({ error: "Invalid input" });
     }
 
@@ -132,7 +145,6 @@ router.put("/:orderNumber", async (req, res) => {
     const { newTimeSlotId } = parsedBody.data;
     const userId = req.user.id;
 
-    // 1. Hämta booking
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select("*")
@@ -140,11 +152,12 @@ router.put("/:orderNumber", async (req, res) => {
       .single();
 
     if (bookingError || !booking) {
+      logger.warn({ event: "booking_update_not_found", orderNumber });
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // 2. Access control
     if (booking.user_id !== userId) {
+      logger.warn({ event: "booking_update_forbidden", orderNumber });
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -152,7 +165,6 @@ router.put("/:orderNumber", async (req, res) => {
       return res.status(400).json({ error: "Same time slot" });
     }
 
-    // 3. Hämta ny slot
     const { data: newSlot } = await supabase
       .from("time_slots")
       .select("*")
@@ -160,10 +172,10 @@ router.put("/:orderNumber", async (req, res) => {
       .single();
 
     if (!newSlot) {
+      logger.warn({ event: "booking_update_new_slot_not_found" });
       return res.status(404).json({ error: "New time slot not found" });
     }
 
-    // 4. Race-safe booking av ny slot
     const { data: updatedNewSlot } = await supabase
       .from("time_slots")
       .update({ is_booked: true })
@@ -172,27 +184,32 @@ router.put("/:orderNumber", async (req, res) => {
       .select();
 
     if (!updatedNewSlot || updatedNewSlot.length === 0) {
+      logger.warn({ event: "booking_update_new_slot_taken" });
       return res.status(400).json({ error: "New time slot already booked" });
     }
 
-    // 5. Frigör gammal slot
     await supabase
       .from("time_slots")
       .update({ is_booked: false })
       .eq("id", booking.time_slot_id);
 
-    // 6. Uppdatera booking
     await supabase
       .from("bookings")
       .update({ time_slot_id: newTimeSlotId })
       .eq("id", booking.id);
 
-    log("UPDATE_SUCCESS", { orderNumber });
+    logger.info({
+      event: "booking_update_success",
+      orderNumber
+    });
 
     res.status(200).json({ message: "Booking updated" });
 
   } catch (err) {
-    log("UPDATE_CRASH", { err });
+    logger.error({
+      event: "booking_update_crash",
+      message: err.message
+    });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -202,18 +219,20 @@ router.put("/:orderNumber", async (req, res) => {
 ======================= */
 router.delete("/:orderNumber", async (req, res) => {
   try {
-    log("DELETE_ATTEMPT", { params: req.params });
+    logger.info({
+      event: "booking_delete_attempt"
+    });
 
     const parsedParams = orderNumberSchema.safeParse(req.params);
 
     if (!parsedParams.success) {
+      logger.warn({ event: "booking_delete_invalid_order_number" });
       return res.status(400).json({ error: "Invalid order number" });
     }
 
     const { orderNumber } = parsedParams.data;
     const userId = req.user.id;
 
-    // 1. Hämta booking
     const { data: booking, error } = await supabase
       .from("bookings")
       .select("*")
@@ -221,32 +240,37 @@ router.delete("/:orderNumber", async (req, res) => {
       .single();
 
     if (error || !booking) {
+      logger.warn({ event: "booking_delete_not_found", orderNumber });
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // 2. Access control
     if (booking.user_id !== userId) {
+      logger.warn({ event: "booking_delete_forbidden", orderNumber });
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    // 3. Ta bort booking
     await supabase
       .from("bookings")
       .delete()
       .eq("id", booking.id);
 
-    // 4. Frigör slot
     await supabase
       .from("time_slots")
       .update({ is_booked: false })
       .eq("id", booking.time_slot_id);
 
-    log("DELETE_SUCCESS", { orderNumber });
+    logger.info({
+      event: "booking_delete_success",
+      orderNumber
+    });
 
     res.status(200).json({ message: "Booking cancelled" });
 
   } catch (err) {
-    log("DELETE_CRASH", { err });
+    logger.error({
+      event: "booking_delete_crash",
+      message: err.message
+    });
     res.status(500).json({ error: "Internal server error" });
   }
 });

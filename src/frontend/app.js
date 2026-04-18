@@ -16,7 +16,7 @@ let rescheduleOrderNumber = null;
 ======================= */
 async function apiFetch(url, options = {}) {
   const response = await fetch(url, {
-    credentials: "include", // 🔥 KRITISK
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {})
@@ -29,11 +29,12 @@ async function apiFetch(url, options = {}) {
   try {
     data = await response.json();
   } catch {
+    console.error("[API] Invalid JSON response"); // ADDED
     throw new Error("Invalid server response");
   }
 
   if (!response.ok) {
-    console.warn("API ERROR:", data);
+    console.warn("[API ERROR]", { url, status: response.status }); // CHANGED
     throw new Error(data.error || "Request failed");
   }
 
@@ -45,6 +46,8 @@ async function apiFetch(url, options = {}) {
 ======================= */
 async function loadTimeSlots() {
   try {
+    console.info("[UI] Loading time slots"); // ADDED
+
     const data = await apiFetch(`${API_URL}/api/time-slots`);
 
     schedule.innerHTML = "";
@@ -81,6 +84,7 @@ async function loadTimeSlots() {
 
         slotDiv.onclick = () => {
           selectedTimeSlotId = slot.id;
+          console.info("[UI] Slot selected", { id: slot.id }); // ADDED
           highlightSelected();
         };
 
@@ -93,7 +97,7 @@ async function loadTimeSlots() {
     }
 
   } catch (err) {
-    console.error(err);
+    console.error("[UI] Failed to load time slots", err); // CHANGED
     schedule.textContent = "Fel vid laddning av tider";
   }
 }
@@ -123,6 +127,7 @@ async function bookSelectedTime() {
   try {
     if (rescheduleOrderNumber) {
       statusText.textContent = "Bokar om...";
+      console.info("[BOOKING] Reschedule attempt"); // ADDED
 
       await apiFetch(`${API_URL}/api/bookings/${rescheduleOrderNumber}`, {
         method: "PUT",
@@ -134,6 +139,7 @@ async function bookSelectedTime() {
       statusText.textContent = "Bokningen är ombokad";
     } else {
       statusText.textContent = "Bokar...";
+      console.info("[BOOKING] Create attempt"); // ADDED
 
       const data = await apiFetch(`${API_URL}/api/bookings`, {
         method: "POST",
@@ -151,7 +157,7 @@ async function bookSelectedTime() {
     loadTimeSlots();
 
   } catch (err) {
-    console.error(err);
+    console.error("[BOOKING ERROR]", err); // CHANGED
     statusText.textContent = err.message || "Något gick fel";
   }
 }
@@ -170,6 +176,7 @@ const manageBookingBtn = document.getElementById("manage-booking-btn");
 const modal = document.getElementById("manageBookingModal");
 
 manageBookingBtn.onclick = () => {
+  console.info("[UI] Open manage booking modal"); // ADDED
   modal.classList.remove("hidden");
   rescheduleOrderNumber = null;
 };
@@ -200,6 +207,7 @@ cancelBookingBtn.onclick = () => {
   document.getElementById("confirmCancelYes").onclick = async () => {
     confirmModal.classList.add("hidden");
     manageBookingMessage.textContent = "Avbokar...";
+    console.info("[BOOKING] Cancel attempt"); // ADDED
 
     try {
       await apiFetch(`${API_URL}/api/bookings/${orderNumber}`, {
@@ -211,7 +219,7 @@ cancelBookingBtn.onclick = () => {
       loadTimeSlots();
 
     } catch (err) {
-      console.error(err);
+      console.error("[BOOKING CANCEL ERROR]", err); // CHANGED
       manageBookingMessage.textContent =
         err.message || "Kunde inte avboka";
     }
@@ -234,6 +242,8 @@ document.getElementById("rescheduleBookingBtn").onclick = () => {
   }
 
   rescheduleOrderNumber = orderNumber;
+
+  console.info("[BOOKING] Reschedule initiated"); // ADDED
 
   manageBookingMessage.textContent =
     "Välj ny tid och klicka på boka";

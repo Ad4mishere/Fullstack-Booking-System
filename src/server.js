@@ -1,5 +1,4 @@
 import rateLimit from "express-rate-limit";
-import crypto from "crypto";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -8,6 +7,7 @@ import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { authMiddleware } from "./middleware/auth.js";
+import { logger } from "./utils/logger.js"; // ADDED
 
 import { supabase } from "./supabaseClient.js";
 import { generateTimeSlots } from "./generateTimeSlots.js";
@@ -39,13 +39,15 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use(cookieParser(process.env.COOKIE_SECRET || "dev-secret"));
-
 /* =======================
    LOGGING
 ======================= */
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
+  logger.info({
+    event: "http_request",
+    method: req.method,
+    url: req.url
+  });
   next();
 });
 
@@ -63,8 +65,6 @@ const limiter = rateLimit({
   message: { error: "Too many requests" }
 });
 app.use("/api", limiter);
-
-
 
 /* =======================
    ROUTES
@@ -93,16 +93,16 @@ async function seedTimeSlots() {
       .limit(1);
 
     if (error) {
-      console.error("Seed check failed:", error);
+      logger.error({ event: "seed_check_failed", error }); // CHANGED
       return;
     }
 
     if (!data || data.length === 0) {
-      console.log("Seeding time slots...");
+      logger.info({ event: "seeding_time_slots" }); // CHANGED
       await generateTimeSlots(10);
     }
   } catch (err) {
-    console.error("Seed crashed:", err);
+    logger.error({ event: "seed_crash", message: err.message }); // CHANGED
   }
 }
 
@@ -127,7 +127,11 @@ app.get("/test-db", async (req, res) => {
 ======================= */
 
 app.use((err, req, res, next) => {
-  console.error("GLOBAL ERROR:", err);
+  logger.error({
+    event: "global_error",
+    message: err.message
+  }); // CHANGED
+
   res.status(500).json({ error: "Internal server error" });
 });
 
@@ -136,13 +140,5 @@ app.use((err, req, res, next) => {
 ======================= */
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-
-  res.status(500).json({
-    error: "Internal server error"
-  });
+  logger.info({ event: "server_start", port: PORT }); // CHANGED
 });

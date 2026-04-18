@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient.js";
+import { logger } from "./utils/logger.js"; // ADDED
 
 export async function generateTimeSlots(daysAhead = 10) {
   const today = new Date();
@@ -42,8 +43,14 @@ export async function generateTimeSlots(daysAhead = 10) {
     .insert(slots);
 
   if (error) {
-    console.error("Error seeding time slots:", error);
+    logger.error({
+      event: "seed_time_slots_failed",
+      error
+    }); // CHANGED
   } else {
-    console.log("Time slots seeded!");
+    logger.info({
+      event: "seed_time_slots_success",
+      count: slots.length
+    }); // CHANGED
   }
 }
