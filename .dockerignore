@@ -5,3 +5,6 @@ npm-debug.log
 .gitignore
 Dockerfile
 docker-compose.yml
+tests
+test-results
+coverage

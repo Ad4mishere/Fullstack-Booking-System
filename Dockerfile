@@ -1,26 +1,36 @@
 # ===== BUILD STAGE =====
-FROM node:20 AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm ci
+
 COPY . .
 
 # ===== PRODUCTION STAGE =====
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
+# installera nödvändiga system libs
+RUN apt-get update && apt-get install -y \
+  python3 \
+  build-essential \
+  && rm -rf /var/lib/apt/lists/*
+
 # skapa non-root user
-RUN addgroup app && adduser -S -G app app
+RUN useradd -m appuser
 
-# kopiera endast det som behövs
-COPY --from=builder /app /app
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-# ta bort dev dependencies
-RUN npm prune --omit=dev
+COPY --from=builder /app/src ./src
 
-USER app
+USER appuser
+
+ENV NODE_ENV=production
 
 EXPOSE 3000
-CMD ["npm", "start"]
+
+CMD ["node", "src/server.js"]

@@ -7,6 +7,7 @@ import "dotenv/config";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { authMiddleware } from "./middleware/auth.js";
 
 import { supabase } from "./supabaseClient.js";
 import { generateTimeSlots } from "./generateTimeSlots.js";
@@ -63,36 +64,14 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
-/* =======================
-   USER MIDDLEWARE (FIXAD)
-======================= */
-const userMiddleware = (req, res, next) => {
-  let userId = req.signedCookies.user_id;
 
-  if (!userId) {
-    userId = crypto.randomUUID();
-
-    res.cookie("user_id", userId, {
-      httpOnly: true,
-      secure: isProduction,               // 🔐 true i prod
-      sameSite: isProduction ? "none" : "lax", // 🔥 FIX
-      signed: true,
-      maxAge: 1000 * 60 * 60 * 24 * 7
-    });
-
-    console.log("New user created:", userId);
-  }
-
-  req.user = { id: userId };
-  next();
-};
 
 /* =======================
    ROUTES
 ======================= */
 
 app.use("/api/time-slots", timeSlotsRoutes);
-app.use("/api/bookings", userMiddleware, bookingsRoutes);
+app.use("/api/bookings", authMiddleware, bookingsRoutes);
 
 /* =======================
    HEALTH
