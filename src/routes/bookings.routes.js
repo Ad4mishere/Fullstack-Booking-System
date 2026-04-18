@@ -3,7 +3,7 @@ import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { supabase } from "../supabaseClient.js";
 import { z } from "zod";
-import { logger } from "../utils/logger.js"; // ADDED
+import { logger } from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -35,7 +35,7 @@ const updateBookingSchema = z.object({
 });
 
 /* =======================
-   CREATE BOOKING
+   CREATE BOOKING (RPC VERSION)
 ======================= */
 router.post("/", async (req, res) => {
   try {
@@ -55,61 +55,26 @@ router.post("/", async (req, res) => {
     const { timeSlotId } = parsed.data;
     const userId = req.user.id;
 
-    const { data: slot, error: slotError } = await supabase
-      .from("time_slots")
-      .select("*")
-      .eq("id", timeSlotId)
-      .single();
+    const { data, error } = await supabase.rpc("book_slot", {
+      p_slot_id: timeSlotId,
+      p_user_id: userId
+    });
 
-    if (slotError || !slot) {
+    if (error) {
       logger.warn({
-        event: "booking_create_slot_not_found",
-        timeSlotId
-      });
-      return res.status(404).json({ error: "Time slot not found" });
-    }
-
-    const { data: updatedSlot } = await supabase
-      .from("time_slots")
-      .update({ is_booked: true })
-      .eq("id", timeSlotId)
-      .eq("is_booked", false)
-      .select();
-
-    if (!updatedSlot || updatedSlot.length === 0) {
-      logger.warn({
-        event: "booking_create_already_booked",
-        timeSlotId
-      });
-      return res.status(400).json({ error: "Time slot already booked" });
-    }
-
-    const orderNumber = `ORD-${crypto.randomUUID()
-      .slice(0, 8)
-      .toUpperCase()}`;
-
-    const { error: insertError } = await supabase
-      .from("bookings")
-      .insert({
-        time_slot_id: timeSlotId,
-        order_number: orderNumber,
-        user_id: userId
-      });
-
-    if (insertError) {
-      logger.error({
         event: "booking_create_failed",
-        message: insertError.message
+        message: error.message
       });
-      return res.status(500).json({ error: "Failed to create booking" });
+
+      return res.status(400).json({ error: error.message });
     }
 
     logger.info({
       event: "booking_create_success",
-      orderNumber
+      orderNumber: data
     });
 
-    return res.status(201).json({ orderNumber });
+    return res.status(201).json({ orderNumber: data });
 
   } catch (err) {
     logger.error({
@@ -149,16 +114,12 @@ router.put("/:orderNumber", async (req, res) => {
       .from("bookings")
       .select("*")
       .eq("order_number", orderNumber)
+      .eq("user_id", userId) // 🔒 IDOR FIX
       .single();
 
     if (bookingError || !booking) {
       logger.warn({ event: "booking_update_not_found", orderNumber });
       return res.status(404).json({ error: "Booking not found" });
-    }
-
-    if (booking.user_id !== userId) {
-      logger.warn({ event: "booking_update_forbidden", orderNumber });
-      return res.status(403).json({ error: "Forbidden" });
     }
 
     if (booking.time_slot_id === newTimeSlotId) {
@@ -237,16 +198,12 @@ router.delete("/:orderNumber", async (req, res) => {
       .from("bookings")
       .select("*")
       .eq("order_number", orderNumber)
+      .eq("user_id", userId) // 🔒 IDOR FIX
       .single();
 
     if (error || !booking) {
       logger.warn({ event: "booking_delete_not_found", orderNumber });
       return res.status(404).json({ error: "Booking not found" });
-    }
-
-    if (booking.user_id !== userId) {
-      logger.warn({ event: "booking_delete_forbidden", orderNumber });
-      return res.status(403).json({ error: "Forbidden" });
     }
 
     await supabase
