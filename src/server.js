@@ -7,7 +7,7 @@ import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { authMiddleware } from "./middleware/auth.js";
-import { logger } from "./utils/logger.js"; // ADDED
+import { logger } from "./utils/logger.js"; 
 
 import { supabase } from "./supabaseClient.js";
 import { generateTimeSlots } from "./generateTimeSlots.js";
