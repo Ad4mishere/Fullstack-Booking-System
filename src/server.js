@@ -159,3 +159,11 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+
+  res.status(500).json({
+    error: "Internal server error"
+  });
+});
