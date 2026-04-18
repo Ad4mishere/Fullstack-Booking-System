@@ -21,12 +21,12 @@ export function authMiddleware(req, res, next) {
       { expiresIn: "7d" }
     );
 
-    res.cookie("token", newToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax"
-    });
-
+    res.cookie("token", token, {
+        httpOnly: true,
+        secure: false, // 👈 ändra till false temporärt
+        sameSite: "lax"
+        });
+    
     req.user = { id: userId };
     return next();
   }
