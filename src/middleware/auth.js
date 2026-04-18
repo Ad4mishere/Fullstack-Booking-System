@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { env } from "../env.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
+const JWT_SECRET = env.JWT_SECRET;
 
 // 🔥 global test-user (persistent i CI)
 let testUserId = "test-user";
