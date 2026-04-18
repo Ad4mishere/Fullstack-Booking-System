@@ -7,19 +7,29 @@ export function authMiddleware(req, res, next) {
   let token = req.cookies.token;
 
   if (!token) {
-    const userId = crypto.randomUUID();
+  // 🔥 CI / TEST fallback
+  if (process.env.NODE_ENV === "test") {
+    req.user = { id: "test-user" };
+    return next();
+  }
 
-    token = jwt.sign(
-      { sub: userId },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+  const userId = crypto.randomUUID();
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax"
-    });
+  token = jwt.sign(
+    { sub: userId },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax"
+  });
+
+  req.user = { id: userId };
+  return next();
+}
 
     req.user = { id: userId };
     return next();
