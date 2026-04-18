@@ -114,7 +114,7 @@ router.put("/:orderNumber", async (req, res) => {
       .from("bookings")
       .select("*")
       .eq("order_number", orderNumber)
-      .eq("user_id", userId) // 🔒 IDOR FIX
+      .eq("user_id", userId) //  IDOR FIX
       .single();
 
     if (bookingError || !booking) {
@@ -198,7 +198,7 @@ router.delete("/:orderNumber", async (req, res) => {
       .from("bookings")
       .select("*")
       .eq("order_number", orderNumber)
-      .eq("user_id", userId) // 🔒 IDOR FIX
+      .eq("user_id", userId) // IDOR FIX
       .single();
 
     if (error || !booking) {
