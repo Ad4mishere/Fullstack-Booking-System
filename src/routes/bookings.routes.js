@@ -40,7 +40,8 @@ const updateBookingSchema = z.object({
 router.post("/", async (req, res) => {
   try {
     logger.info({
-      event: "booking_create_attempt"
+      event: "booking_create_attempt",
+      userId: req.user?.id
     });
 
     const parsed = createBookingSchema.safeParse(req.body);
@@ -71,6 +72,7 @@ router.post("/", async (req, res) => {
 
     logger.info({
       event: "booking_create_success",
+      userId,
       orderNumber: data
     });
 
@@ -91,9 +93,9 @@ router.post("/", async (req, res) => {
 router.put("/:orderNumber", async (req, res) => {
   try {
     logger.info({
-      event: "booking_update_attempt"
+      event: "booking_update_attempt",
+      userId: req.user?.id
     });
-
     const parsedParams = orderNumberSchema.safeParse(req.params);
     if (!parsedParams.success) {
       logger.warn({ event: "booking_update_invalid_order_number" });
@@ -110,68 +112,36 @@ router.put("/:orderNumber", async (req, res) => {
     const { newTimeSlotId } = parsedBody.data;
     const userId = req.user.id;
 
-    const { data: booking, error: bookingError } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("order_number", orderNumber)
-      .eq("user_id", userId) //  IDOR FIX
-      .single();
+    const { error } = await supabase.rpc("update_booking", {
+      p_order_number: orderNumber,
+      p_user_id: userId,
+      p_new_slot_id: newTimeSlotId
+    });
 
-    if (bookingError || !booking) {
-      logger.warn({ event: "booking_update_not_found", orderNumber });
-      return res.status(404).json({ error: "Booking not found" });
+    if (error) {
+      logger.warn({
+        event: "booking_update_failed",
+        userId,
+        message: error.message
+      });
+
+      return res.status(400).json({ error: error.message });
     }
-
-    if (booking.time_slot_id === newTimeSlotId) {
-      return res.status(400).json({ error: "Same time slot" });
-    }
-
-    const { data: newSlot } = await supabase
-      .from("time_slots")
-      .select("*")
-      .eq("id", newTimeSlotId)
-      .single();
-
-    if (!newSlot) {
-      logger.warn({ event: "booking_update_new_slot_not_found" });
-      return res.status(404).json({ error: "New time slot not found" });
-    }
-
-    const { data: updatedNewSlot } = await supabase
-      .from("time_slots")
-      .update({ is_booked: true })
-      .eq("id", newTimeSlotId)
-      .eq("is_booked", false)
-      .select();
-
-    if (!updatedNewSlot || updatedNewSlot.length === 0) {
-      logger.warn({ event: "booking_update_new_slot_taken" });
-      return res.status(400).json({ error: "New time slot already booked" });
-    }
-
-    await supabase
-      .from("time_slots")
-      .update({ is_booked: false })
-      .eq("id", booking.time_slot_id);
-
-    await supabase
-      .from("bookings")
-      .update({ time_slot_id: newTimeSlotId })
-      .eq("id", booking.id);
 
     logger.info({
       event: "booking_update_success",
+      userId,
       orderNumber
     });
 
-    res.status(200).json({ message: "Booking updated" });
+    return res.status(200).json({ message: "Booking updated" });
 
   } catch (err) {
     logger.error({
       event: "booking_update_crash",
       message: err.message
     });
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -181,11 +151,11 @@ router.put("/:orderNumber", async (req, res) => {
 router.delete("/:orderNumber", async (req, res) => {
   try {
     logger.info({
-      event: "booking_delete_attempt"
+      event: "booking_delete_attempt",
+      userId: req.user?.id
     });
 
     const parsedParams = orderNumberSchema.safeParse(req.params);
-
     if (!parsedParams.success) {
       logger.warn({ event: "booking_delete_invalid_order_number" });
       return res.status(400).json({ error: "Invalid order number" });
@@ -194,41 +164,34 @@ router.delete("/:orderNumber", async (req, res) => {
     const { orderNumber } = parsedParams.data;
     const userId = req.user.id;
 
-    const { data: booking, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("order_number", orderNumber)
-      .eq("user_id", userId) // IDOR FIX
-      .single();
+    const { error } = await supabase.rpc("cancel_booking", {
+      p_order_number: orderNumber,
+      p_user_id: userId
+    });
 
-    if (error || !booking) {
-      logger.warn({ event: "booking_delete_not_found", orderNumber });
-      return res.status(404).json({ error: "Booking not found" });
+    if (error) {
+      logger.warn({
+        event: "booking_delete_failed",
+        message: error.message
+      });
+
+      return res.status(400).json({ error: error.message });
     }
-
-    await supabase
-      .from("bookings")
-      .delete()
-      .eq("id", booking.id);
-
-    await supabase
-      .from("time_slots")
-      .update({ is_booked: false })
-      .eq("id", booking.time_slot_id);
 
     logger.info({
       event: "booking_delete_success",
+      userId,
       orderNumber
     });
 
-    res.status(200).json({ message: "Booking cancelled" });
+    return res.status(200).json({ message: "Booking cancelled" });
 
   } catch (err) {
     logger.error({
       event: "booking_delete_crash",
       message: err.message
     });
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

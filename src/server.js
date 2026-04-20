@@ -56,7 +56,8 @@ app.use((req, res, next) => {
   logger.info({
     event: "http_request",
     method: req.method,
-    url: req.url
+    url: req.url,
+    userId: req.user?.id || null
   });
   next();
 });
