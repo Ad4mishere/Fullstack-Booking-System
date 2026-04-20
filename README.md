@@ -1,180 +1,168 @@
-# Booking System – DevOps CI/CD Project
+Fullstack Booking System – DevSecOps Project
 
+Overview
 
-## Overview
+This project is a secure, containerized fullstack booking system built with a strong focus on DevSecOps principles.
 
-This project demonstrates a secure CI/CD pipeline for a booking system application.
+The application allows users to:
 
-The focus is on automated testing, secure development practices, and controlled
-deployment through pull request validation.
+View available time slots
+Create bookings
+Reschedule bookings
+Cancel bookings
 
-# Description
+The main goal of the project is not just functionality, but to demonstrate how a system can be transformed into a production-ready, secure, and automated solution.
 
-The focus of the project is **architecture, testability, and automation of CI/CD**, rather than UI complexity.
-The application demonstrates a complete DevSecOps workflow including automated testing,
-branch protection, and a CI pipeline running on every pull request. The tests included in this project are
-Vitest (unit testing), Postman + Newman (Api testing) and Playwright (E2E testing).
+Architecture
 
----
+The system is built using a layered architecture with clear separation of concerns:
 
-## 🧱 Tech Stack
+Frontend: Vanilla JavaScript (deployed on Vercel)
+Backend: Node.js + Express (deployed on Railway)
+Database: Supabase (PostgreSQL)
+CI/CD: GitHub Actions
+Containerization: Docker
 
-### Backend
-- Node.js 20 (ES Modules)
-- Express
-- SQLite (better-sqlite3)
-- REST API with proper HTTP status codes
+Security Principle
 
-### Frontend
-- HTML, CSS and JavaScript
-- Fetch API for backend communication
-- Modal-based UX for booking management
+The frontend is never trusted.
+All validation, authentication, and authorization are handled in the backend and database.
 
-### Testing
-- **Vitest** – Unit tests (backend logic)
-- **Postman + Newman** – API tests
-- **Playwright** – End-to-end tests (frontend + backend)
+Security Features
+HTTP Security (Helmet)
+Protects against:
+Clickjacking
+XSS
+Unsafe resource loading
+Adds secure HTTP headers automatically
+CORS (Cross-Origin Resource Sharing)
+Only allows requests from:
+Local development
+Production frontend (Vercel)
+Prevents unauthorized external websites from accessing the API
+Input Validation (Zod)
+All incoming data is validated
+Prevents:
+Invalid input
+Injection attacks
+Application crashes
+Authentication (JWT + Cookies)
+Stateless user identification using JWT
+Stored in httpOnly cookies
+Protects against:
+XSS attacks
+Token manipulation
 
-### CI/CD
-- GitHub Actions
-- Branch protection on `main`
-- Pull request–based workflow
+Note: This is a lightweight session system, not a full user authentication system.
 
----
+Authorization
+Each request is tied to a user ID
+Users can only:
+Modify their own bookings
+Prevents IDOR (Insecure Direct Object Reference)
+Rate Limiting
+Limits API requests per user
+Protects against:
+Brute force attacks
+API abuse
+DoS attempts
+Database Security (Supabase + RLS)
+Backend uses service role key
+Database logic handled via RPC functions
+Row Level Security (RLS) enabled
+Race Condition Protection
+Booking logic handled in database
+Atomic operations prevent:
+Double bookings
+Inconsistent data
 
-##  How to Run the Project Locally
+Containerization (Docker)
 
-### 1. Install dependencies
+The backend is fully containerized with focus on security:
 
-- npm install
+Multi-stage build
+Minimal base image
+Non-root user
+No secrets in image
+.dockerignore implemented
+CI/CD Pipeline (GitHub Actions)
 
-2. Start the server
+The pipeline automatically runs on push:
 
-- npm start
-The application will be available at:
+Steps:
+Install dependencies
+Lint code (ESLint)
+Run unit tests (Vitest)
+Security scanning:
+Semgrep (SAST)
+Gitleaks (secrets scanning)
+npm audit (dependencies)
+Build Docker image
+Scan container (Trivy)
+Run API tests (Newman)
+Run E2E tests (Playwright)
+Deploy to production
+Deployment
+Frontend
+Hosted on Vercel
+Auto-deploy via Git
+Backend
+Hosted on Railway
+Docker-based deployment
+Security Configuration
+HTTPS enabled
+CORS configured
+Environment variables used for secrets
+Logging & Monitoring
 
-http://localhost:3000
+The system uses structured logging for:
 
-# Testing
+Booking actions
+Errors
+Security events
+What is logged:
+Event type
+User ID
+Order number (when relevant)
+What is NOT logged:
+Tokens
+Secrets
+Sensitive data
+Incident Handling
+Example Scenario:
 
-### Code Quality
-- **ESLint** – Automated code style and quality checks
+Unauthorized booking manipulation attempt
 
-
-Unit Tests (Vitest)
-Tests backend logic without HTTP or database access.
-
-
-npm test
-
-API Tests (Postman / Newman)
-
-Runs a Postman collection against the running backend.
-
-
-npm run test:api
-
-End-to-End Tests (Playwright)
-
-Tests the full user flow through the frontend.
-
-
-npx playwright test
-
-CI/CD Pipeline
-
-The GitHub Actions pipeline runs automatically on every push and pull request.
-
-
-### Pipeline steps:
-1. Install dependencies
-2. Run ESLint (code quality checks)
-3. Run security audit (`npm audit`)
-4. Run unit tests (Vitest)
-5. Start backend server
-6. Run API tests (Newman)
-7. Run E2E tests (Playwright)
-
-
-# API Endpoints
-
-- Get available time slots
-
-GET /api/time-slots
-
-Returns all available (unbooked) time slots.
-
-- Create a booking
-
-POST /api/bookings
-
-Request body:
-
-{
-  "timeSlotId": 1
-}
-
-
+Detection:
+Logs show repeated failed requests
 Response:
+Analyze logs
+Block suspicious behavior
+Patch vulnerability
+Post-mortem:
+Identify root cause
+Improve validation or authorization
+Testing
 
-{
-  "orderNumber": "ORD-XXXXXXX"
-}
+The project includes multiple testing layers:
 
-- Reschedule a booking
+Unit tests (Vitest)
+API tests (Postman + Newman)
+End-to-End tests (Playwright)
+Key Learnings
+Security must be integrated from the start
+Backend should never trust frontend input
+CI/CD pipelines are critical for reliability
+Real issues appear during deployment, not development
+Defense-in-depth is essential
+Conclusion
 
-PUT /api/bookings/:orderNumber
-Request body:
+📦 Run Locally
+# Install dependencies
+npm install
 
-{
-  "newTimeSlotId": 2
-}
-
-- Cancel a booking
-
-DELETE /api/bookings/:orderNumber
-
-- Health check
-
-GET /health
-
-Architecture & Design Decisions
-n
-ode_modules and the database file are excluded from Git with .gitignore
-
-Native dependencies are built in CI
-
-Tests are separated by responsibility:
-
-Unit tests (logic)
-
-API tests (HTTP & integration)
-
-E2E tests (user flow)
-
-Backend server is started once in CI and reused by API and E2E tests
-
-Frontend includes confirmation modal before destructive actions (UX improvement)
-
-# Branch Strategy
-
-Development is done on the develop branch
-
-Changes are merged into main via Pull Requests
-
-main is protected and requires passing CI before merge
-
-## Summary
-
-A Postman collection for testing all API endpoints is included in the `postman/` directory.
-
-This project demonstrates:
-
-A complete CI/CD pipeline
-
-Automated testing at multiple levels
-
-Secure and controlled merge strategy
-
-Practical DevSecOps problem-solving
-The focus is on correct engineering practices, not visual complexity.
+# Start server
+npm start
+🐳 Run with Docker
+docker build -t booking-app .
+docker run -p 3000:3000 booking-app
