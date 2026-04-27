@@ -40,9 +40,9 @@ export async function generateTimeSlots(daysAhead = 10) {
   // Insert ALL slots at once
   const { error } = await supabase
     .from("time_slots")
-    .insert(slots);
-
-  if (error) {
+      .upsert(slots, { onConflict: "date,start_time" })
+  
+      if (error) {
     logger.error({
       event: "seed_time_slots_failed",
       error
