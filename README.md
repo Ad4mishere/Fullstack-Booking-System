@@ -203,4 +203,4 @@ docker run -p 3000:3000 booking-app
 
 This project demonstrates how a simple application can be transformed into a secure, automated, and production-ready system.
 
-It integrates security, containerization, CI/CD, and cloud deployment into a cohesive workflow aligned with DevSecOps practices
+It integrates security, containerization, CI/CD, and cloud deployment into a cohesive workflow aligned with DevSecOps practices.
