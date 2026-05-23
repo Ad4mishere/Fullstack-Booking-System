@@ -1,95 +1,240 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #f5f5f3;
+  --surface: #ffffff;
+  --border: #e8e6e1;
+  --border-hover: #c8c5be;
+  --text-primary: #1a1a18;
+  --text-secondary: #6b6860;
+  --text-hint: #a8a5a0;
+  --accent: #1a1a18;
+  --accent-hover: #333330;
+  --accent-text: #ffffff;
+  --slot-hover-bg: #f0efe9;
+  --selected-bg: #1a1a18;
+  --selected-text: #ffffff;
+  --selected-border: #1a1a18;
+  --danger: #c0392b;
+  --danger-bg: #fdf2f1;
+  --danger-hover: #a93226;
+  --success: #1a6b3c;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06);
+  --font: 'DM Sans', system-ui, sans-serif;
+  --mono: 'DM Mono', monospace;
+  --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: #f4f6f8;
+  font-family: var(--font);
+  background-color: var(--bg);
   margin: 0;
   padding: 0;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
 }
 
 .container {
-  max-width: 900px;
+  max-width: 860px;
   margin: 3rem auto;
-  background-color: #ffffff;
-  padding: 2.5rem;
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  background-color: var(--surface);
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  animation: fadeSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 h1 {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin: 0 0 2.75rem;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
 }
 
 .schedule {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 0;
 }
 
 .day {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
   padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+  animation: fadeIn 0.3s ease both;
+}
+
+.day:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .day h2 {
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-  color: #374151;
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-hint);
 }
 
 .slots {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.5rem;
 }
 
 .slot {
-  border: 1px solid #d1d5db;
-  padding: 0.6rem;
+  border: 1px solid var(--border);
+  padding: 0.65rem 0.5rem;
   text-align: center;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  background-color: #fafafa;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  background-color: var(--surface);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
+  user-select: none;
 }
 
 .slot:hover {
-  background-color: #eef5ff;
-  border-color: #93c5fd;
+  background-color: var(--slot-hover-bg);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.slot:active {
+  transform: translateY(0);
 }
 
 .slot.selected {
-  background-color: #dbeafe;
-  border-color: #2563eb;
+  background-color: var(--selected-bg);
+  border-color: var(--selected-border);
+  color: var(--selected-text);
   font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .book-btn {
   margin-top: 2.5rem;
   width: 100%;
-  padding: 0.9rem;
-  font-size: 1rem;
-  border-radius: 10px;
+  padding: 1rem;
+  font-size: 0.95rem;
+  font-family: var(--font);
+  font-weight: 500;
+  border-radius: var(--radius-md);
   border: none;
-  background-color: #2563eb;
-  color: #ffffff;
+  background-color: var(--accent);
+  color: var(--accent-text);
   cursor: pointer;
+  letter-spacing: 0.01em;
+  transition:
+    background-color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
 }
 
 .book-btn:hover {
-  background-color: #1d4ed8;
+  background-color: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+}
+
+.book-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.manage-booking-btn {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.9rem;
+  font-size: 0.9rem;
+  font-family: var(--font);
+  font-weight: 400;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.manage-booking-btn:hover {
+  background-color: var(--slot-hover-bg);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.manage-booking-btn:active {
+  transform: translateY(0);
 }
 
 .status {
   margin-top: 1.25rem;
   text-align: center;
+  font-size: 0.875rem;
   font-weight: 500;
-  color: #111827;
+  color: var(--text-secondary);
+  min-height: 1.25rem;
+  transition: color var(--transition);
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
-
 
 #manageBookingModal {
   position: fixed;
@@ -97,23 +242,147 @@ h1 {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.4);
-
+  background: rgba(15, 15, 13, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-
-#manageBookingModal > div {
-  background: white;
-  padding: 20px;
-  border-radius: 6px;
-  min-width: 300px;
+  z-index: 100;
+  backdrop-filter: blur(3px);
+  animation: overlayIn 0.2s ease both;
 }
 
 #manageBookingModal.hidden {
-  display: none;
+  display: none !important;
+}
+
+#manageBookingModal > div {
+  background: var(--surface);
+  padding: 2rem 2rem 1.75rem;
+  border-radius: var(--radius-lg);
+  min-width: 340px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  animation: modalIn 0.25s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+#manageBookingModal h3 {
+  margin: 0 0 1.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+#orderNumberInput {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9rem;
+  font-family: var(--mono);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  margin-bottom: 1rem;
+}
+
+#orderNumberInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(26,26,24,0.08);
+}
+
+#orderNumberInput::placeholder {
+  color: var(--text-hint);
+}
+
+#manageBookingModal > div > div {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+#cancelBookingBtn {
+  flex: 1;
+  padding: 0.7rem;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid #f5c2bd;
+  background-color: var(--danger-bg);
+  color: var(--danger);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+#cancelBookingBtn:hover {
+  background-color: #fae4e2;
+  border-color: #e8a9a3;
+  transform: translateY(-1px);
+}
+
+#cancelBookingBtn:active {
+  transform: translateY(0);
+}
+
+#rescheduleBookingBtn {
+  flex: 1;
+  padding: 0.7rem;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: none;
+  background-color: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    transform var(--transition);
+}
+
+#rescheduleBookingBtn:hover {
+  background-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+#rescheduleBookingBtn:active {
+  transform: translateY(0);
+}
+
+#manageBookingMessage {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem;
+  min-height: 1.2rem;
+}
+
+#closeManageBookingBtn {
+  width: 100%;
+  padding: 0.65rem;
+  font-family: var(--font);
+  font-size: 0.84rem;
+  font-weight: 400;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-hint);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+#closeManageBookingBtn:hover {
+  background-color: var(--slot-hover-bg);
+  color: var(--text-secondary);
 }
 
 #confirmCancelModal {
@@ -122,27 +391,120 @@ h1 {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.4);
-
+  background: rgba(15, 15, 13, 0.5);
   align-items: center;
   justify-content: center;
-
-  z-index: 1000;
+  z-index: 200;
+  backdrop-filter: blur(3px);
+  animation: overlayIn 0.2s ease both;
 }
 
 #confirmCancelModal:not(.hidden) {
   display: flex;
 }
 
-.hidden {
-  display: none;
+#confirmCancelModal .modal {
+  background: var(--surface);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  width: 340px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  animation: modalIn 0.25s cubic-bezier(0.34, 1.4, 0.64, 1) both;
 }
 
-#confirmCancelModal .modal {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  width: 320px;
-  text-align: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+#confirmCancelModal .modal h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+#confirmCancelModal .modal p {
+  margin: 0 0 1.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+#confirmCancelYes {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: var(--danger);
+  color: #ffffff;
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    transform var(--transition);
+}
+
+#confirmCancelYes:hover {
+  background-color: var(--danger-hover);
+  transform: translateY(-1px);
+}
+
+#confirmCancelYes:active {
+  transform: translateY(0);
+}
+
+#confirmCancelNo {
+  width: 100%;
+  padding: 0.75rem;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 400;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+#confirmCancelNo:hover {
+  background-color: var(--slot-hover-bg);
+  color: var(--text-primary);
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    margin: 1rem;
+    padding: 1.75rem 1.25rem;
+    border-radius: var(--radius-md);
+  }
+
+  h1 {
+    font-size: 1.3rem;
+  }
+
+  .slots {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  }
 }
